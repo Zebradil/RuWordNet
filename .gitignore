@@ -1,0 +1,6 @@
+.idea
+*.swp
+*.log
+xml2sql/xml/*
+sql2lex/out/*
+!.keep

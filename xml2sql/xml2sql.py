@@ -6,19 +6,20 @@ import os
 import sys
 from subprocess import Popen, PIPE
 from xml.etree import ElementTree
-from psycopg2 import connect
 
+from psycopg2 import connect
 
 PKG_ROOT = os.path.split(__file__)[0]
 SQL_ROOT = os.path.join(PKG_ROOT, 'sql')
-XML_ROOT = os.path.join(PKG_ROOT, 'xml')
+# XML_ROOT = os.path.join(PKG_ROOT, 'xml')
+XML_ROOT = os.path.join(PKG_ROOT, '..', 'raw2xml', 'out')
 
 conn = None
 
 dbconfig = {
     'database': 'ruthes',
-    'user': 'ruthes',
-    'password': 'ruthes',
+    'user': 'ruwordnet',
+    'password': 'ruwordnet',
     'host': '127.0.0.1'
 }
 
@@ -132,7 +133,7 @@ def insert_data(filename, table, fields, get_values, get_items):
     print('Start processing ' + filename)
 
     logname = os.path.join(PKG_ROOT, 'log', filename + '.log')
-    file = open(logname, 'w')
+    file = open(logname, 'w', encoding='utf-8')
 
     fields_str = ', '.join(str(v) for v in fields)
     dollars = ', '.join('$' + str(i + 1) for i in range(len(fields)))
@@ -148,7 +149,7 @@ def insert_data(filename, table, fields, get_values, get_items):
 
     with conn.cursor() as cur:
         sql = 'PREPARE prepared_query_{table} AS '.format(table=table) + \
-              'INSERT INTO {tbl} ({fields}) VALUES ({dollars})'\
+              'INSERT INTO {tbl} ({fields}) VALUES ({dollars})' \
                   .format(fields=fields_str, dollars=dollars, tbl=table)
 
         cur.execute(sql)

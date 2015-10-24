@@ -1,9 +1,9 @@
 import getopt
 import os
 import sys
-from psycopg2 import connect, extras
 import re
 
+from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.split(__file__)[0]
 OUT_ROOT = os.path.join(PKG_ROOT, 'out')
@@ -45,6 +45,12 @@ def main(argv):
     print('Generating lexfile for nouns')
     generate_lex_file('N')
 
+    print('Generating lexfile for verbs')
+    generate_lex_file('V')
+
+    print('Generating lexfile for adjectives')
+    generate_lex_file('Adj')
+
     print('Done')
 
 
@@ -61,7 +67,7 @@ def generate_lex_file_empty(pos):
         os.remove(filename)
     print('Output file: ' + filename)
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
-            open(filename, 'w') as file:
+            open(filename, 'w', encoding='utf-8') as file:
 
         print('Finding entries...')
         sql = """
@@ -158,9 +164,17 @@ def generate_lex_file_empty(pos):
 
 
 def generate_lex_file(pos):
+    types = {
+        'N': ('N', 'NG', 'NGprep', 'PrepG'),
+        'V': ('V', 'VG', 'VGprep', 'Prdc'),
+        'Adj': ('Adj', 'AdjG', 'AdjGprep'),
 
-    types = {'N': ('N', 'NG')}[pos]
-    lex_file = {'N': 'noun.all'}[pos]
+    }[pos]
+    lex_file = {
+        'N': 'noun.all',
+        'V': 'verb.all',
+        'Adj': 'adj.all',
+    }[pos]
 
     filename = os.path.join(OUT_ROOT, lex_file)
 
@@ -170,7 +184,7 @@ def generate_lex_file(pos):
     print('Output file: ' + filename)
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
-            open(filename, 'w') as file:
+            open(filename, 'w', encoding='utf-8') as file:
 
         print('Finding entries...')
 
@@ -231,14 +245,19 @@ def generate_lex_file(pos):
         print('{0} entries found. {1} are empty.'.format(cur.rowcount, empty_cnt))
 
         print('Selecting relations...')
-        sql = 'SELECT * FROM relations'
+        sql = """
+          SELECT r.*
+          FROM relations r
+            INNER JOIN concepts cf
+              ON cf.id = r.from_id
+            INNER JOIN concepts ct
+              ON ct.id = r.to_id
+          WHERE r.name IN('ВЫШЕ', 'НИЖЕ')
+        """
         cur.execute(sql)
 
         for relation in cur:
-            cid = relation['from_id']
-            # бывает, связь есть, а понятия такого нет
-            if cid in concepts:
-                concepts[cid]['relations'].append(relation)
+            concepts[relation['from_id']]['relations'].append(relation)
 
         synset_tpl = '{{{words},{pointers} ({gloss})}}'
 
@@ -263,7 +282,7 @@ def generate_lex_file(pos):
 
             pointers = []
             for relation in relations:
-                ptr_chr = get_pointer(relation['name'], relation['asp'], 'N')
+                ptr_chr = get_pointer(relation['name'], relation['asp'], pos)
                 if ptr_chr is not None:
                     toc = concepts[relation['to_id']]
                     ptr_word = get_pointer_word(toc['entries'])
@@ -276,7 +295,7 @@ def generate_lex_file(pos):
         print()
 
 
-def fix_relation(concepts, relation) -> object:
+def fix_relation(concepts, relation, path=None) -> object:
     """
     Проверяем текущее отношение - оно должно указывать на понятие
     с не пустыми текстовыми входами. Если отношение не проходит
@@ -287,8 +306,14 @@ def fix_relation(concepts, relation) -> object:
     :param relation:
     :return:
     """
+    if path is None:
+        path = []
+    # Это отношение уже рассматривалось
+    if relation in path:
+        return []
+    path.append(relation)
     if relation['to_id'] in concepts:
-        # Берём понятие, на которое указывает данно отношение
+        # Берём понятие, на которое указывает данное отношение
         toc = concepts[relation['to_id']]
         if len([entry for entry in toc['entries'] if entry['id'] is not None]) > 0:
             # Если у понятия есть не пустые текстовые входы, значит отношение нам подходит
@@ -300,7 +325,7 @@ def fix_relation(concepts, relation) -> object:
             # Проверяем, чтобы тип отношения совпадал с исходным отношением
             if rel['name'] == relation['name']:
                 # И запускаем проверку этого отношения
-                relations += fix_relation(concepts, rel)
+                relations += fix_relation(concepts, rel, path)
         return relations
     return []
 

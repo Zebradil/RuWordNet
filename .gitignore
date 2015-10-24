@@ -3,6 +3,7 @@
 *.log
 xml2sql/xml/*
 sql2lex/out/*
+sql2xml/out/*
 raw2xml/data/*
 raw2xml/out/*
 !.keep

@@ -1,7 +1,7 @@
 import getopt
 import os
-import sys
 import re
+import sys
 
 from psycopg2 import connect, extras
 
@@ -338,7 +338,8 @@ def get_pointer(rel_type, asp, pos):
         'ЧАСТЬ': '%p',
         'НИЖЕ': '~',
         'ВЫШЕ': '@',
-        'АСЦ': None
+        'АСЦ': None,
+        'АНТ': '!',
     }
     return rel_map[rel_type]
 

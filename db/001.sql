@@ -54,6 +54,18 @@ FROM synonyms s
   LEFT JOIN concepts c ON c.id = s.concept_id
 WHERE c.id IS NULL OR t.id IS NULL;
 
+DELETE FROM synonyms s
+WHERE NOT EXISTS(
+    SELECT 1
+    FROM concepts c
+    WHERE c.id = s.concept_id
+)
+      OR NOT EXISTS(
+    SELECT 1
+    FROM text_entry t
+    WHERE t.id = s.entry_id
+);
+
 -- текстовые входы, не связанные ни с одним понятием
 SELECT t.*
 FROM text_entry t

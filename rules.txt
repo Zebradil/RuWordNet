@@ -1,0 +1,194 @@
+==== Классические меронимы ====================================================
+
+Нужно выделить все отношения часть и отношения целое, установленные между понятиями,
+которые по отношениям гиперонимии относятся к понятию ФИЗИЧЕСКАЯ СУЩНОСТЬ.
+
+WITH RECURSIVE ctree(id, name, root_id, root_name) AS (
+  SELECT
+    c.id,
+    c.name,
+    c.id   root_id,
+    c.name root_name
+  FROM concepts c
+  WHERE c.id IN (147134) -- ФИЗИЧЕСКАЯ СУЩНОСТЬ
+
+  UNION
+  SELECT
+    c.id,
+    c.name,
+    ct.root_id,
+    ct.root_name
+  FROM concepts c
+    INNER JOIN relations r ON r.from_id = c.id
+    INNER JOIN ctree ct ON ct.id = r.to_id
+  WHERE r.name = 'ВЫШЕ'
+)
+SELECT
+  DISTINCT
+  c1.id,
+  c1.name,
+  c2.id,
+  c2.name
+FROM relations r
+  INNER JOIN ctree c1 ON c1.id = r.from_id
+  INNER JOIN concepts c2 ON c2.id = r.to_id
+WHERE r.name = 'ЦЕЛОЕ';
+
+===============================================================================
+
+
+==== Атрибут ==================================================================
+
+Нужно взять концепты, которые являются подвидами концепта СВОЙСТВО, ХАРАКТЕРИСТИКА
+и взять для них отношение ЦЕЛОЕ.
+
+Например,
+ВОДОИЗМЕЩЕНИЕ атрибут ВОДНЫЕ СРЕДСТВА ТРАНСПОРТА.
+
+WITH RECURSIVE ctree(id, name, root_id, root_name) AS (
+  SELECT
+    c.id,
+    c.name,
+    c.id   root_id,
+    c.name root_name
+  FROM concepts c
+  WHERE c.id IN (106768) -- СВОЙСТВО, ХАРАКТЕРИСТИКА
+  UNION
+  SELECT
+    c.id,
+    c.name,
+    ct.root_id,
+    ct.root_name
+  FROM concepts c
+    INNER JOIN relations r ON r.from_id = c.id
+    INNER JOIN ctree ct ON ct.id = r.to_id
+  WHERE r.name = 'ВЫШЕ'
+)
+SELECT
+  DISTINCT
+  c1.id,
+  c1.name,
+  c2.id,
+  c2.name
+FROM relations r
+  INNER JOIN ctree c1 ON c1.id = r.from_id
+  INNER JOIN concepts c2 ON c2.id = r.to_id
+WHERE r.name = 'ЦЕЛОЕ';
+
+===============================================================================
+
+
+==== Этапы процессов и domains ================================================
+
+Пары концептов, входящих в сеть родовидовых отношений с корневым концептом
+ПРОИСХОДЯЩАЯ СУЩНОСТЬ, между которыми установлено отношение ЧАСТЬ.
+
+Если концепт относится как вид к понятию СФЕРА ДЕЯТЕЛЬНОСТИ, то все его части
+(процессы, объекты - все) назовем domain.
+А в этапах процессов оставим все процессы, которые не относятся к понятию СФЕРА ДЕЯТЕЛЬНОСТИ.
+
+
+WITH RECURSIVE ctree(id, name, root_id, root_name) AS (
+  SELECT
+    c.id,
+    c.name,
+    c.id   root_id,
+    c.name root_name
+  FROM concepts c
+  WHERE c.id IN (153471) -- ПРОИСХОДЯЩАЯ СУЩНОСТЬ
+  UNION
+  SELECT
+    c.id,
+    c.name,
+    ct.root_id,
+    ct.root_name
+  FROM concepts c
+    INNER JOIN relations r ON r.from_id = c.id
+    INNER JOIN ctree ct ON ct.id = r.to_id
+  WHERE r.name = 'ВЫШЕ'
+), ctree2(id, name, root_id, root_name) AS (
+  SELECT
+    c.id,
+    c.name,
+    c.id   root_id,
+    c.name root_name
+  FROM concepts c
+  WHERE c.id IN (106562) -- СФЕРА ДЕЯТЕЛЬНОСТИ
+  UNION
+  SELECT
+    c.id,
+    c.name,
+    ct.root_id,
+    ct.root_name
+  FROM concepts c
+    INNER JOIN relations r ON r.from_id = c.id
+    INNER JOIN ctree2 ct ON ct.id = r.to_id
+  WHERE r.name = 'ВЫШЕ'
+), ctree3 (id, name) AS (
+  SELECT
+    id,
+    name
+  FROM ctree
+  INTERSECT -- domains
+  -- EXCEPT -- этапы процессов
+  SELECT
+    id,
+    name
+  FROM ctree2
+)
+
+SELECT
+  DISTINCT
+  c1.id,
+  c1.name,
+  c2.id,
+  c2.name
+FROM relations r
+  INNER JOIN ctree3 c1 ON c1.id = r.from_id
+  INNER JOIN concepts c2 ON c2.id = r.to_id
+WHERE r.name = 'ЧАСТЬ';
+
+===============================================================================
+
+
+==== Антонимы =================================================================
+
+Антонимами будем считать два концепта, относящихся по цепи отношений гипоним-гипероним
+к концептам СВОЙСТВО, ХАРАКТЕРИСТИКА или СОСТОЯНИЕ, ВНУТРЕННИЕ ОБСТОЯТЕЛЬСТВА
+
+WITH RECURSIVE ctree(id, name, root_id, root_name) AS (
+  SELECT
+    c.id,
+    c.name,
+    c.id   root_id,
+    c.name root_name
+  FROM concepts c
+  WHERE c.id IN (
+      106563, -- СВОЙСТВО, ХАРАКТЕРИСТИКА
+      106768  -- СОСТОЯНИЕ, ВНУТРЕННИЕ ОБСТОЯТЕЛЬСТВА
+    )
+  UNION
+  SELECT
+    c.id,
+    c.name,
+    ct.root_id,
+    ct.root_name
+  FROM concepts c
+    INNER JOIN relations r ON r.from_id = c.id
+    INNER JOIN ctree ct ON ct.id = r.to_id
+  WHERE r.name = 'ВЫШЕ'
+)
+SELECT
+  DISTINCT
+  c1.id,
+  c1.name,
+  c2.id,
+  c2.name
+FROM relations r
+  INNER JOIN ctree c1 ON c1.id = r.from_id
+  INNER JOIN concepts c2 ON c2.id = r.to_id
+WHERE r.name = 'АСЦ1'
+/* r.name = 'АСЦ' AND c1.id > c2.id */
+;
+
+===============================================================================

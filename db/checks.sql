@@ -1,28 +1,28 @@
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE synt_type IN ('10', '20');
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE main_word IN ('10', '20');
 --
 SELECT
   name,
   count(id) cnt
-FROM text_entry_new
+FROM text_entry
 GROUP BY name
 ORDER BY cnt DESC;
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE id IN (752483, 752482, 750972);
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE name = 'НЕНАСИЛЬСТВЕННЫЙ';
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE synt_type NOT IN (
   'Adj',
   'AdjG',
@@ -39,23 +39,23 @@ WHERE synt_type NOT IN (
 );
 --
 SELECT *
-FROM text_entry_new t
+FROM text_entry t
   LEFT JOIN synonyms s
     ON s.entry_id = t.id
 WHERE s.concept_id IS NULL;
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE
   array_length(regexp_split_to_array(pos_string, '\s+'), 1) <> array_length(regexp_split_to_array(lemma, '\s+'), 1);
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE
   array_length(regexp_split_to_array(name, '\s+-*\s*'), 1) <> array_length(regexp_split_to_array(lemma, '\s+'), 1);
 --
 SELECT *
-FROM text_entry_new
+FROM text_entry
 WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1
       AND main_word = '';
 --
@@ -63,7 +63,7 @@ SELECT
   lemma,
   array_agg(name),
   count(1) cnt
-FROM text_entry_new
+FROM text_entry
 GROUP BY lemma
 ORDER BY cnt DESC;
 --

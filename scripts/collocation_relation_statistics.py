@@ -24,17 +24,9 @@ blacklist = ['И', 'ДА', 'ЖЕ', 'ТО', 'ИЛИ', 'КАК', 'РАЗ', 'ТАК
              'ПРОСТО', 'ХОРОШО']
 
 conn = connect(**dbconfig)
-with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
-        conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
-    sql = """
-      SELECT
-        name,
-        lemma,
-        synset_id
-      FROM senses
-      WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1"""
-    cur.execute(sql)
 
+
+def prepare_rwn_relation_query(cursor):
     sql = """
       SELECT sr.name
       FROM senses se
@@ -50,8 +42,10 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
       WHERE lemma = $2
             AND synset_id = $1
       LIMIT 1"""
-    cur2.execute('PREPARE select_rwn_relation AS ' + sql)
+    cursor.execute('PREPARE select_rwn_relation AS ' + sql)
 
+
+def prepare_ruthes_relation_query(cursor):
     sql = """
       SELECT
         r.name,
@@ -70,79 +64,170 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
       WHERE t.lemma = $1
             AND t2.lemma = $2
       LIMIT 1"""
-    cur2.execute('PREPARE select_ruthes_relation AS ' + sql)
+    cursor.execute('PREPARE select_ruthes_relation AS ' + sql)
 
+
+def prepare_transitional_relation_query(cursor):
+    sql = """
+        WITH RECURSIVE tree (root_id, root_lemma, id, lemma, id_path, lemma_path) AS (
+          SELECT
+            c.id root_id,
+            t.lemma root_lemma,
+            c.id,
+            t.lemma,
+            ARRAY[c.id] id_path,
+            ARRAY[t.lemma] lemma_path
+          FROM text_entry t
+            INNER JOIN synonyms s
+              ON s.entry_id = t.id
+            INNER JOIN concepts c
+              ON c.id = s.concept_id
+            WHERE t.lemma = $2
+          UNION ALL
+          SELECT
+            tree.id root_id,
+            tree.root_lemma root_lemma,
+            c.id,
+            t.lemma,
+            array_append(tree.id_path, c.id),
+            array_append(tree.lemma_path, t.lemma)
+          FROM tree
+            INNER JOIN relations r
+              ON r.from_id = tree.id
+            INNER JOIN concepts c
+              ON c.id = r.to_id
+            INNER JOIN synonyms s
+              ON s.concept_id = c.id
+            INNER JOIN text_entry t
+              ON t.id = s.entry_id
+          WHERE r.name = $3
+        )
+
+        SELECT
+          *
+        FROM tree
+        WHERE lemma = $1
+        LIMIT 1"""
+    cursor.execute('PREPARE select_transited_relation AS ' + sql)
+
+
+def prepare_sense_existance_check_query(cursor):
     sql = """
       SELECT
         (SELECT count(1) FROM senses WHERE lemma = $1) sense,
         (SELECT count(1) FROM text_entry WHERE lemma = $1) entry"""
-    cur2.execute('PREPARE check_sense_existence AS ' + sql)
+    cursor.execute('PREPARE check_sense_existence AS ' + sql)
 
-    counters = {
-        'collocations': 0,
-        'noRelation': 0,
-        'wordPresented': 0,
-        'relations': {
 
-        },
-    }
+def main():
+    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
+            conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
+        print('search collocations', flush=True)
+        sql = """
+          SELECT
+            name,
+            lemma,
+            synset_id
+          FROM senses
+          WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1"""
+        cur.execute(sql)
 
-    for row in cur:
-        print()
-        print(row['name'], ':')
-        counters['collocations'] += 1
+        print('prepare_rwn_relation_query', flush=True)
+        prepare_rwn_relation_query(cur2)
+        print('prepare_ruthes_relation_query', flush=True)
+        prepare_ruthes_relation_query(cur2)
+        print('prepare_transitional_relation_query', flush=True)
+        prepare_transitional_relation_query(cur2)
+        print('prepare_sense_existance_check_query', flush=True)
+        prepare_sense_existance_check_query(cur2)
 
-        for word in row['lemma'].split():
-            if word in blacklist:
-                continue
-            string = word + ' - '
-            params = {
-                'synset_id': row['synset_id'],
-                'word': word
-            }
-            cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s, %(word)s)', params)
-            rwn_relation = cur2.fetchone()
+        counters = {
+            'collocations': 0,
+            'noRelation': 0,
+            'wordPresented': 0,
+            'relations': {
 
-            if rwn_relation is None:
+            },
+        }
+        print('start looping', flush=True)
+        for row in cur:
+            print(flush=True)
+            print(row['name'], ':', flush=True)
+            counters['collocations'] += 1
+
+            for word in row['lemma'].split():
+                if word in blacklist:
+                    continue
+                string = word + ' - '
                 params = {
-                    'collocation': row['lemma'],
-                    'word': word,
+                    'synset_id': row['synset_id'],
+                    'word': word
                 }
-                cur2.execute('EXECUTE select_ruthes_relation(%(word)s, %(collocation)s)', params)
-                ruthes_relation = cur2.fetchone()
-                if ruthes_relation is None:
-                    n = None
-                    string += 'нет'
-                    counters['noRelation'] += 1
-                    cur2.execute('EXECUTE check_sense_existence(%(word)s)', {'word': word})
-                    senseEntry = cur2.fetchone()
-                    if senseEntry['sense'] > 0 or senseEntry['entry'] > 0:
-                        counters['wordPresented'] += 1
-                        existenceStrings = []
-                        if senseEntry['entry'] > 0:
-                            existenceStrings.append('есть в РуТез')
-                        if senseEntry['sense'] > 0:
-                            existenceStrings.append('есть в RWN')
-                        string += ' (' + (', '.join(existenceStrings)) + ')'
+                cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s, %(word)s)', params)
+                rwn_relation = cur2.fetchone()
+
+                if rwn_relation is None:
+                    params = {
+                        'collocation': row['lemma'],
+                        'word': word,
+                    }
+                    cur2.execute('EXECUTE select_ruthes_relation(%(word)s, %(collocation)s)', params)
+                    ruthes_relation = cur2.fetchone()
+                    if ruthes_relation is None:
+                        chain = None
+                        for name in ['ВЫШЕ', 'НИЖЕ', 'ЧАСТЬ', 'ЦЕЛОЕ']:
+                            params = {
+                                'word': word,
+                                'collocation': row['lemma'],
+                                'name': name
+                            }
+                            cur2.execute('EXECUTE select_transited_relation(%(word)s, %(collocation)s, %(name)s)',
+                                         params)
+                            senses_chain = cur2.fetchone()
+                            if senses_chain is not None:
+                                chain = '(' + name + ') ' + ' → '.join(senses_chain['lemma_path'])
+
+                        if chain is not None:
+                            string += chain
+                        else:
+                            string += 'нет'
+
+                            # n = None
+                            # string += 'нет'
+                            # counters['noRelation'] += 1
+                            # cur2.execute('EXECUTE check_sense_existence(%(word)s)', {'word': word})
+                            # sense_entry = cur2.fetchone()
+                            # if sense_entry['sense'] > 0 or sense_entry['entry'] > 0:
+                            #     counters['wordPresented'] += 1
+                            #     existence_strings = []
+                            #     if sense_entry['entry'] > 0:
+                            #         existence_strings.append('есть в РуТез')
+                            #     if sense_entry['sense'] > 0:
+                            #         existence_strings.append('есть в RWN')
+                            #     string += ' (' + (', '.join(existence_strings)) + ')'
+                    else:
+                        n = ruthes_relation['name']
+                        string += n
                 else:
-                    n = ruthes_relation['name']
+                    n = rwn_relation['name']
                     string += n
-            else:
-                n = rwn_relation['name']
-                string += n
 
-            if n is not None:
-                if n not in counters['relations']:
-                    counters['relations'][n] = 0
-                counters['relations'][n] += 1
+                if n is not None:
+                    if n not in counters['relations']:
+                        counters['relations'][n] = 0
+                    counters['relations'][n] += 1
 
-            print(string)
-    print()
-    print('Словосочетаний: ' + str(counters['collocations']))
-    print('Слов без отношений: ' + str(counters['noRelation']) +
-          ' (' + str(counters['wordPresented']) + ' слов представлены в тезаурусе)')
-    print('Количество связей:')
-    for relation, count in counters['relations'].items():
-        print(relation + ' — ' + str(count))
+                print(string, flush=True)
+        print(flush=True)
+        print('Словосочетаний: ' + str(counters['collocations']))
+        print('Слов без отношений: ' + str(counters['noRelation']) +
+              ' (' + str(counters['wordPresented']) + ' слов представлены в тезаурусе)')
+        print('Количество связей:')
+        for relation, count in counters['relations'].items():
+            print(relation + ' — ' + str(count))
 
-print('Done')
+    print('Done')
+
+
+if __name__ == "__main__":
+    main()

@@ -69,44 +69,41 @@ def prepare_ruthes_relation_query(cursor):
 
 def prepare_transitional_relation_query(cursor):
     sql = """
-        WITH RECURSIVE tree (root_id, root_lemma, id, lemma, id_path, lemma_path) AS (
+        WITH RECURSIVE tree (id, name, id_path, name_path) AS (
           SELECT
-            c.id root_id,
-            t.lemma root_lemma,
-            c.id,
-            t.lemma,
-            ARRAY[c.id] id_path,
-            ARRAY[t.lemma] lemma_path
-          FROM text_entry t
-            INNER JOIN synonyms s
-              ON s.entry_id = t.id
-            INNER JOIN concepts c
-              ON c.id = s.concept_id
-            WHERE t.lemma = $2
+            id,
+            name,
+            array[id] id_path,
+            array[name] name_path
+          FROM concepts
+            WHERE id IN(
+              SELECT s.concept_id
+              FROM synonyms s
+                INNER JOIN text_entry t
+                  ON t.id = s.entry_id
+              WHERE t.lemma = $2
+            )
           UNION ALL
           SELECT
-            tree.id root_id,
-            tree.root_lemma root_lemma,
             c.id,
-            t.lemma,
+            c.name,
             array_append(tree.id_path, c.id),
-            array_append(tree.lemma_path, t.lemma)
+            array_append(tree.name_path, c.name)
           FROM tree
             INNER JOIN relations r
               ON r.from_id = tree.id
             INNER JOIN concepts c
               ON c.id = r.to_id
-            INNER JOIN synonyms s
-              ON s.concept_id = c.id
-            INNER JOIN text_entry t
-              ON t.id = s.entry_id
           WHERE r.name = $3
         )
 
-        SELECT
-          *
+        SELECT *
         FROM tree
-        WHERE lemma = $1
+          INNER JOIN synonyms s
+            ON s.concept_id = tree.id
+          INNER JOIN text_entry t
+            ON t.id = s.entry_id
+        WHERE t.lemma = $1
         LIMIT 1"""
     cursor.execute('PREPARE select_transited_relation AS ' + sql)
 
@@ -185,7 +182,7 @@ def main():
                                          params)
                             senses_chain = cur2.fetchone()
                             if senses_chain is not None:
-                                chain = '(' + name + ') ' + ' → '.join(senses_chain['lemma_path'])
+                                chain = '(' + name + ') ' + ' → '.join(senses_chain['name_path'])
 
                         if chain is not None:
                             string += chain

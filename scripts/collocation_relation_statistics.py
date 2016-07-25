@@ -96,7 +96,7 @@ def prepare_transitional_relation_query(cursor):
               ON r.from_id = tree.id
             INNER JOIN concepts c
               ON c.id = r.to_id
-          WHERE r.name IN($3, 'АСЦ') AND tree.parent_relation_name = $3
+          WHERE r.name = ANY($4) AND tree.parent_relation_name = $3
         )
 
         SELECT *
@@ -174,14 +174,23 @@ def main():
                     ruthes_relation = cur2.fetchone()
                     if ruthes_relation is None:
                         chain = None
-                        for name in ['ВЫШЕ', 'НИЖЕ', 'ЧАСТЬ', 'ЦЕЛОЕ']:
+                        for name in ('ВЫШЕ', 'НИЖЕ', 'ЧАСТЬ', 'ЦЕЛОЕ'):
+                            if name == 'ВЫШЕ':
+                                tail_names = ['АСЦ', 'ЧАСТЬ']
+                            elif name == 'ЧАСТЬ':
+                                tail_names = ['АСЦ']
+                            else:
+                                tail_names = ['']
+
                             params = {
                                 'word': word,
                                 'collocation': row['lemma'],
-                                'name': name
+                                'name': name,
+                                'tail_names': [name] + tail_names
                             }
-                            cur2.execute('EXECUTE select_transited_relation(%(word)s, %(collocation)s, %(name)s)',
-                                         params)
+                            cur2.execute(
+                                """EXECUTE select_transited_relation(
+                                    %(word)s, %(collocation)s, %(name)s, %(tail_names)s)""", params)
                             senses_chain = cur2.fetchone()
                             if senses_chain is not None:
                                 chain = '(' + name + ') ' + \

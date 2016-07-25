@@ -69,12 +69,13 @@ def prepare_ruthes_relation_query(cursor):
 
 def prepare_transitional_relation_query(cursor):
     sql = """
-        WITH RECURSIVE tree (id, name, id_path, name_path) AS (
+        WITH RECURSIVE tree (id, name, id_path, name_path, parent_relation_name) AS (
           SELECT
             id,
             name,
-            array[id] id_path,
-            array[name] name_path
+            ARRAY[id] id_path,
+            ARRAY[name] name_path,
+            $3 parent_relation_name
           FROM concepts
             WHERE id IN(
               SELECT s.concept_id
@@ -88,13 +89,14 @@ def prepare_transitional_relation_query(cursor):
             c.id,
             c.name,
             array_append(tree.id_path, c.id),
-            array_append(tree.name_path, c.name)
+            array_append(tree.name_path, c.name),
+            r.name parent_relation_name
           FROM tree
             INNER JOIN relations r
               ON r.from_id = tree.id
             INNER JOIN concepts c
               ON c.id = r.to_id
-          WHERE r.name = $3
+          WHERE r.name IN($3, 'АСЦ') AND tree.parent_relation_name = $3
         )
 
         SELECT *
@@ -182,7 +184,9 @@ def main():
                                          params)
                             senses_chain = cur2.fetchone()
                             if senses_chain is not None:
-                                chain = '(' + name + ') ' + ' → '.join(senses_chain['name_path'])
+                                chain = '(' + name + ') ' + \
+                                        ' → '.join(senses_chain['name_path']) + \
+                                        ' (' + senses_chain['parent_relation_name'] + ')'
 
                         if chain is not None:
                             string += chain

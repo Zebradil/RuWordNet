@@ -142,6 +142,8 @@ def main():
 
         counters = {
             'collocations': 0,
+            'collocationsNoRelations': 0,
+            'collocationsAllRelations': 0,
             'noRelation': 0,
             'wordPresented': 0,
             'relations': {
@@ -154,9 +156,13 @@ def main():
             print(row['name'], ':', flush=True)
             counters['collocations'] += 1
 
+            words_with_relations = 0
+            checked_words = 0
+
             for word in row['lemma'].split():
                 if word in blacklist:
                     continue
+                checked_words += 1
                 string = word + ' - '
                 params = {
                     'synset_id': row['synset_id'],
@@ -198,23 +204,22 @@ def main():
                                         ' (' + senses_chain['parent_relation_name'] + ')'
 
                         if chain is not None:
+                            n = 'ВЫВОД'
                             string += chain
                         else:
+                            n = None
                             string += 'нет'
-
-                            # n = None
-                            # string += 'нет'
-                            # counters['noRelation'] += 1
-                            # cur2.execute('EXECUTE check_sense_existence(%(word)s)', {'word': word})
-                            # sense_entry = cur2.fetchone()
-                            # if sense_entry['sense'] > 0 or sense_entry['entry'] > 0:
-                            #     counters['wordPresented'] += 1
-                            #     existence_strings = []
-                            #     if sense_entry['entry'] > 0:
-                            #         existence_strings.append('есть в РуТез')
-                            #     if sense_entry['sense'] > 0:
-                            #         existence_strings.append('есть в RWN')
-                            #     string += ' (' + (', '.join(existence_strings)) + ')'
+                            counters['noRelation'] += 1
+                            cur2.execute('EXECUTE check_sense_existence(%(word)s)', {'word': word})
+                            sense_entry = cur2.fetchone()
+                            if sense_entry['sense'] > 0 or sense_entry['entry'] > 0:
+                                counters['wordPresented'] += 1
+                                existence_strings = []
+                                if sense_entry['entry'] > 0:
+                                    existence_strings.append('есть в РуТез')
+                                if sense_entry['sense'] > 0:
+                                    existence_strings.append('есть в RWN')
+                                string += ' (' + (', '.join(existence_strings)) + ')'
                     else:
                         n = ruthes_relation['name']
                         string += n
@@ -226,10 +231,18 @@ def main():
                     if n not in counters['relations']:
                         counters['relations'][n] = 0
                     counters['relations'][n] += 1
+                    words_with_relations += 1
 
                 print(string, flush=True)
+            if checked_words == words_with_relations:
+                counters['collocationsAllRelations'] += 1
+            elif words_with_relations == 0:
+                counters['collocationsNoRelations'] += 1
         print(flush=True)
         print('Словосочетаний: ' + str(counters['collocations']))
+        print('    — со всеми связями: ' + str(counters['collocationsAllRelations']))
+        print('    — без связей: ' + str(counters['collocationsNoRelations']))
+        print()
         print('Слов без отношений: ' + str(counters['noRelation']) +
               ' (' + str(counters['wordPresented']) + ' слов представлены в тезаурусе)')
         print('Количество связей:')

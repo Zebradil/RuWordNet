@@ -121,15 +121,6 @@ def prepare_sense_existance_check_query(cursor):
 def main():
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
             conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
-        print('search collocations', flush=True)
-        sql = """
-          SELECT
-            name,
-            lemma,
-            synset_id
-          FROM senses
-          WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1"""
-        cur.execute(sql)
 
         print('prepare_rwn_relation_query', flush=True)
         prepare_rwn_relation_query(cur2)
@@ -139,6 +130,16 @@ def main():
         prepare_transitional_relation_query(cur2)
         print('prepare_sense_existance_check_query', flush=True)
         prepare_sense_existance_check_query(cur2)
+
+        print('search collocations', flush=True)
+        sql = """
+          SELECT
+            name,
+            lemma,
+            synset_id
+          FROM senses
+          WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1"""
+        cur.execute(sql)
 
         counters = {
             'collocations': 0,

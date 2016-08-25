@@ -26,14 +26,12 @@ blacklist = ['И', 'ДА', 'ЖЕ', 'ТО', 'ИЛИ', 'КАК', 'РАЗ', 'ТАК
 conn = connect(**dbconfig)
 
 
-def prepare_rwn_relation_query(cursor):
+def prepare_rwn_word_relation_query(cursor):
     sql = """
       SELECT sr.name
       FROM senses se
-        INNER JOIN synsets sy
-          ON sy.id = se.synset_id
         INNER JOIN synset_relations sr
-          ON sr.child_id = sy.id
+          ON sr.child_id = se.synset_id
       WHERE sr.parent_id = $1
             AND se.lemma = $2
       UNION ALL
@@ -42,6 +40,38 @@ def prepare_rwn_relation_query(cursor):
       WHERE lemma = $2
             AND synset_id = $1
       LIMIT 1"""
+    cursor.execute('PREPARE select_rwn_word_relation AS ' + sql)
+
+
+def prepare_rwn_relation_query(cursor):
+    sql = """
+        SELECT
+          synset_id,
+          array_agg(name) senses,
+          rel_name
+        FROM
+          (
+            SELECT
+              se.synset_id,
+              se.name,
+              'derivational_to' rel_name
+            FROM senses se
+              INNER JOIN synset_relations sr
+                ON sr.child_id = se.synset_id
+            WHERE sr.parent_id = $1
+                  AND sr.name = 'derivational'
+                  AND array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1
+            UNION ALL
+            SELECT
+              synset_id,
+              name,
+              'synonym_to'
+            FROM senses
+            WHERE synset_id = $1
+                  AND array_length(regexp_split_to_array(lemma, '\s+'), 1) = 1
+          ) t
+        GROUP BY synset_id, rel_name
+        ORDER BY rel_name"""
     cursor.execute('PREPARE select_rwn_relation AS ' + sql)
 
 
@@ -122,6 +152,8 @@ def main():
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
             conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
 
+        print('prepare_rwn_word_relation_query', flush=True)
+        prepare_rwn_word_relation_query(cur2)
         print('prepare_rwn_relation_query', flush=True)
         prepare_rwn_relation_query(cur2)
         print('prepare_ruthes_relation_query', flush=True)
@@ -169,7 +201,7 @@ def main():
                     'synset_id': row['synset_id'],
                     'word': word
                 }
-                cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s, %(word)s)', params)
+                cur2.execute('EXECUTE select_rwn_word_relation(%(synset_id)s, %(word)s)', params)
                 rwn_relation = cur2.fetchone()
 
                 if rwn_relation is None:
@@ -239,6 +271,15 @@ def main():
                 counters['collocationsAllRelations'] += 1
             elif words_with_relations == 0:
                 counters['collocationsNoRelations'] += 1
+
+            print(flush=True)
+            params = {
+                'synset_id': row['synset_id'],
+            }
+            cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s)', params)
+            for rel_row in cur2:
+                print(rel_row['rel_name'] + ': ' + ', '.join(rel_row['senses']), flush=True)
+
         print(flush=True)
         print('Словосочетаний: ' + str(counters['collocations']))
         print('    — со всеми связями: ' + str(counters['collocationsAllRelations']))

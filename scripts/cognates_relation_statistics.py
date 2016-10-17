@@ -48,12 +48,59 @@ def prepare_search_cognates(cursor):
     cursor.execute('PREPARE search_cognates AS ' + sql)
 
 
+def prepare_search_cognates_transitionally(cursor):
+    sql = """
+        WITH RECURSIVE tree (id, name, id_path, name_path, parent_relation_name) AS (
+          SELECT
+            id,
+            name,
+            ARRAY[id] id_path,
+            ARRAY[name] name_path,
+            $2 parent_relation_name
+          FROM concepts
+          WHERE id IN(
+            SELECT concept_id
+            FROM synonyms s
+              INNER JOIN text_entry t
+                ON t.id = s.entry_id
+            WHERE t.name = $1
+          )
+          UNION ALL
+          SELECT
+            c.id,
+            c.name,
+            array_append(tree.id_path, c.id),
+            array_append(tree.name_path, c.name),
+            r.name parent_relation_name
+          FROM tree
+            INNER JOIN relations r
+              ON r.from_id = tree.id
+            INNER JOIN concepts c
+              ON c.id = r.to_id
+          WHERE r.name = ANY($3) AND tree.parent_relation_name = $2
+        )
+
+        SELECT t.name, tree.name_path, tree.parent_relation_name
+        FROM tree
+          INNER JOIN synonyms s
+            ON s.concept_id = tree.id
+          INNER JOIN text_entry t
+            ON t.id = s.entry_id
+        WHERE t.name != $1
+          AND array_length(id_path, 1) > 1
+          AND substr(t.name, 1, 4) = substr($1, 1, 4)
+          AND array_length(regexp_split_to_array(t.name, '\s+'), 1) = 1"""
+    cursor.execute('PREPARE search_cognates_transitionally AS ' + sql)
+
+
 def main():
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
             conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
 
         print('prepare_search_cognates', flush=True)
         prepare_search_cognates(cur2)
+        print('prepare_search_cognates_transitionally', flush=True)
+        prepare_search_cognates_transitionally(cur2)
 
         print('search collocations', flush=True)
         sql = """
@@ -77,7 +124,30 @@ def main():
             }
             cur2.execute('EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s)', params)
             for cognate in cur2.fetchall():
-                print(cognate['rel_name'] + ': ' + cognate['name'])
+                print(cognate['name'] + ': ' + cognate['rel_name'])
+
+            for name in ('ВЫШЕ', 'НИЖЕ', 'ЧАСТЬ', 'ЦЕЛОЕ'):
+                if name == 'ВЫШЕ':
+                    tail_names = ['АСЦ', 'ЧАСТЬ']
+                elif name == 'ЧАСТЬ':
+                    tail_names = ['АСЦ']
+                else:
+                    tail_names = ['']
+
+                params = {
+                    'word': row['name'],
+                    'name': name,
+                    'tail_names': [name] + tail_names
+                }
+                cur2.execute(
+                    """EXECUTE search_cognates_transitionally(
+                        %(word)s, %(name)s, %(tail_names)s)""", params)
+                for senses_chain in cur2.fetchall():
+                    chain = senses_chain['name'] + ':' + \
+                            ' (' + name + ') ' + \
+                            ' → '.join(senses_chain['name_path']) + \
+                            ' (' + senses_chain['parent_relation_name'] + ')'
+                    print(chain)
 
     print('Done')
 

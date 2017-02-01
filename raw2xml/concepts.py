@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 
 from lxml import etree
 
@@ -35,9 +36,13 @@ ARGS = parser.parse_args()
 concepts = {}
 
 with open(ARGS.source_file, "r", encoding='Windows-1251') as inp:
+    rgx = re.compile('^(\d+)\s+(.+)\s+(\d+)$')
     for line in inp:
-        spl = line.split('\t')
-        concepts[spl[0]] = spl[1:] + [""]
+        # I've got file with spaces instead of tabs, so it won't work
+        # spl = line.split('\t')
+        # concepts[spl[0]] = spl[1:] + [""]
+        spl = rgx.findall(line)[0]
+        concepts[spl[0]] = [spl[1].strip(), spl[2], '']
 
 concept = None
 gloss = ''

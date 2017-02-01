@@ -1,11 +1,33 @@
-#!/usr/bin/python3
-# coding=utf-8
+#!/usr/bin/env python3
+
+import argparse
+import os
 
 from lxml import etree
 
+PKG_ROOT = os.path.split(__file__)[0]
+
+parser = argparse.ArgumentParser(description='Generates RuThes relations.xml file from txt data file.')
+parser.add_argument(
+    '-s',
+    '--source-file',
+    type=str,
+    help='Source txt file',
+    default=os.path.join(PKG_ROOT, 'data', 'relats.txt')
+)
+parser.add_argument(
+    '-d',
+    '--destination-file',
+    type=str,
+    help='Destination xml file',
+    default=os.path.join(PKG_ROOT, 'out', 'relations.xml')
+)
+
+ARGS = parser.parse_args()
+
 root = etree.Element("relations")
 
-with open("data/relats.txt", "r", encoding='Windows-1251') as inp:
+with open(ARGS.source_file, "r", encoding='Windows-1251') as inp:
     for line in inp:
         spl = line.strip().split('\t')
 
@@ -33,4 +55,4 @@ with open("data/relats.txt", "r", encoding='Windows-1251') as inp:
             doc.set("asp", " ")
 
 tree = etree.ElementTree(root)
-tree.write("out/relations.xml", encoding="utf-8", pretty_print=True)
+tree.write(ARGS.destination_file, encoding="utf-8", pretty_print=True)

@@ -1,15 +1,36 @@
-#!/usr/bin/python3
-# coding=utf-8
+#!/usr/bin/env python3
 
+import argparse
+import os
 import re
 
 from lxml import etree
+
+PKG_ROOT = os.path.split(__file__)[0]
+
+parser = argparse.ArgumentParser(description='Generates RuThes text_entry.xml file from txt data file.')
+parser.add_argument(
+    '-s',
+    '--source-file',
+    type=str,
+    help='Source txt file',
+    default=os.path.join(PKG_ROOT, 'data', 'textentries.txt')
+)
+parser.add_argument(
+    '-d',
+    '--destination-file',
+    type=str,
+    help='Destination xml file',
+    default=os.path.join(PKG_ROOT, 'out', 'text_entry.xml')
+)
+
+ARGS = parser.parse_args()
 
 root = etree.Element("entries")
 
 
 def main():
-    filename = 'data/textentries.txt'
+    filename = ARGS.source_file
 
     word_chars = '[А-Яа-я\d\w\-",\(\)\./]'
     pp = '(\d+)\s+((?:\s{0,2}' + word_chars + ')+)\s+(?:10|20)\s+((?:\s{0,2}' + word_chars + ')+)'
@@ -45,7 +66,7 @@ def main():
     print(str(i) + ' rows inserted')
 
     tree = etree.ElementTree(root)
-    tree.write("out/text_entry.xml", encoding="utf-8", pretty_print=True)
+    tree.write(ARGS.destination_file, encoding="utf-8", pretty_print=True)
 
 
 def insert_data(element):

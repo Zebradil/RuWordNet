@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 
 from lxml import etree
 
@@ -28,8 +29,9 @@ ARGS = parser.parse_args()
 root = etree.Element("synonyms")
 
 with open(ARGS.source_file, "r", encoding="Windows-1251") as inp:
+    rgx = re.compile('\s{2,}')
     for line in inp:
-        spl = line.strip().split('\t')
+        spl = rgx.split(line.strip())
 
         doc = etree.SubElement(root, "entry_rel")
         doc.set("concept_id", spl[0])

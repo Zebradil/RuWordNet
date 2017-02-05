@@ -1,12 +1,31 @@
-#!/usr/bin/python3
-# coding=utf-8
+#!/usr/bin/env python3
 
+import argparse
 import csv
 import os
 
 from psycopg2 import connect
 
-filename = 'in/antonyms_final.txt'
+parser = argparse.ArgumentParser(description='Import antonymy relations to RuThes database.')
+parser.add_argument(
+    '-s',
+    '--source-file',
+    type=str,
+    help='Source csv file'
+)
+connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser.add_argument(
+    '-c',
+    '--connection-string',
+    type=str,
+    help="Postgresql database connection string ({})".format(connection_string),
+    default=connection_string
+)
+
+ARGS = parser.parse_args()
+
+filename = ARGS.source_file
+
 relation_name = 'АНТОНИМ'
 reversible = True
 reverse_relation_name = relation_name
@@ -14,18 +33,11 @@ reverse_relation_name = relation_name
 replace = False
 relation_name_to_replace = None
 
-dbconfig = {
-    'database': 'ruthes',
-    'user': 'ruwordnet',
-    'password': 'ruwordnet',
-    'host': '127.0.0.1'
-}
-
 if not os.path.isfile(filename):
     print('File not exists')
     exit()
 
-conn = connect(**dbconfig)
+conn = connect(ARGS.connection_string)
 with open(filename, encoding='cp1251') as csvfile, conn.cursor() as cur:
     prepare = "PREPARE insert_relations AS " \
               "INSERT INTO relations (from_id, to_id, name) VALUES ($1, $2, '" + relation_name + "')"

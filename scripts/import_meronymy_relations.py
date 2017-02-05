@@ -1,40 +1,62 @@
-#!/usr/bin/python3
-# coding=utf-8
+#!/usr/bin/env python3
 
+import argparse
 import os
 import re
 
 from psycopg2 import connect
 
-switch = 2
+# filename = 'in/add_part.txt'
+# asp = 'add_part'
+# relation_name = 'ЦЕЛОЕ'
+#
+# filename = 'in/process_steps_final.txt'
+# asp = 'process_steps'
+# relation_name = 'ЧАСТЬ'
+#
+# filename = 'in/classical_meronymy_edited.txt'
+# asp = 'classical_meronymy'
+# relation_name = 'ЧАСТЬ'
 
-if switch == 0:
-    filename = 'in/add_part.txt'
-    asp = 'add_part'
-    relation_name = 'ЦЕЛОЕ'
-elif switch == 1:
-    filename = 'in/process_steps_final.txt'
-    asp = 'process_steps'
-    relation_name = 'ЧАСТЬ'
-elif switch == 2:
-    filename = 'in/classical_meronymy_edited.txt'
-    asp = 'classical_meronymy'
-    relation_name = 'ЧАСТЬ'
-else:
-    exit(1)
+parser = argparse.ArgumentParser(description='Import meronymy relations to RuThes database.')
+parser.add_argument(
+    '-s',
+    '--source-file',
+    type=str,
+    help='Source csv file'
+)
+connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser.add_argument(
+    '-c',
+    '--connection-string',
+    type=str,
+    help="Postgresql database connection string ({})".format(connection_string),
+    default=connection_string
+)
+parser.add_argument(
+    '--type',
+    type=str,
+    help='Relation type',
+    choises=['ЦЕЛОЕ', 'ЧАСТЬ']
+)
+parser.add_argument(
+    '--sub-type',
+    type=str,
+    help='Relation sub-type',
+    choises=['add_part', 'process_steps', 'classical_meronymy']
+)
 
-dbconfig = {
-    'database': 'ruthes',
-    'user': 'ruwordnet',
-    'password': 'ruwordnet',
-    'host': '127.0.0.1'
-}
+ARGS = parser.parse_args()
+
+filename = ARGS.source_file
+asp = ARGS.sub_type
+relation_name = ARGS.type
 
 if not os.path.isfile(filename):
     print('File not exists')
     exit()
 
-conn = connect(**dbconfig)
+conn = connect(ARGS.connection_string)
 with open(filename, encoding='cp1251') as file, conn.cursor() as cur:
     prepare = "PREPARE update_relation AS " \
               "UPDATE relations SET asp = $4 " \

@@ -43,7 +43,7 @@ parser.add_argument(
     '--sub-type',
     type=str,
     help='Relation sub-type',
-    choises=['add_part', 'process_steps', 'classical_meronymy']
+    choices=['add_part', 'process_steps', 'classical_meronymy']
 )
 
 ARGS = parser.parse_args()

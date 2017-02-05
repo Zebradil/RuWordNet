@@ -37,7 +37,7 @@ parser.add_argument(
     '--type',
     type=str,
     help='Relation type',
-    choises=['ЦЕЛОЕ', 'ЧАСТЬ']
+    choices=['ЦЕЛОЕ', 'ЧАСТЬ']
 )
 parser.add_argument(
     '--sub-type',

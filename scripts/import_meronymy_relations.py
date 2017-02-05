@@ -73,6 +73,7 @@ with open(filename, encoding='cp1251') as file, conn.cursor() as cur:
     pattern = re.compile('^(\d+)[^\d]+(\d+)[^\d]+$')
 
     for line in file:
+        line = line.strip()
         match_obj = pattern.match(line)
         if match_obj is None:
             print('NOT MATCH: ', line)

@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-# coding=utf-8
+#!/usr/bin/env python3
 
 from psycopg2 import connect, extras
 

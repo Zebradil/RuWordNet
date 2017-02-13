@@ -1,38 +1,42 @@
+#!/usr/bin/env python3
+
+import argparse
 import os
-import sys
 import uuid
-from subprocess import Popen, PIPE
 
 from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.split(__file__)[0]
 
+parser = argparse.ArgumentParser(description='Convert RuThes to RuWordNet.')
+
+connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser.add_argument(
+    '-c',
+    '--connection-string',
+    type=str,
+    help="Postgresql database connection string ({})".format(connection_string),
+    default=connection_string
+)
+
+parser.add_argument(
+    '-n',
+    '--dry-run',
+    action='store_true'
+)
+
+ARGS = parser.parse_args()
+
 conn = None
 
-dbconfig = {
-    'database': 'ruthes',
-    'user': 'ruwordnet',
-    'password': 'tyjn2008',
-    'host': '127.0.0.1'
-}
 
-dry_run = False
-
-
-def main(argv):
+def main():
     global conn
 
-    try:
-        conn = connect(**dbconfig)
-    except:
-        print('I am unable to connect to the database')
-        exit(1)
+    conn = connect(ARGS.connection_string)
 
     print('Start')
-    init_db()
     transform_ruthes_to_ruwordnet()
-    create_indexes()
-
     print('Done')
 
 
@@ -123,9 +127,11 @@ def transform_ruthes_to_ruwordnet():
         for relation in cur:
             concepts[relation['from_id']]['relations'].append(relation)
 
-        insert_synset_sql = make_insert_query('synsets', ('id', 'name', 'definition', 'part_of_speech'), cur)
-        insert_sense_sql = make_insert_query('senses', (
-        'id', 'synset_id', 'name', 'lemma', 'synt_type', 'meaning', 'main_word', 'poses'), cur)
+        fields = ('id', 'name', 'definition', 'part_of_speech')
+        insert_synset_sql = make_insert_query('synsets', fields, cur)
+
+        fields = ('id', 'synset_id', 'name', 'lemma', 'synt_type', 'meaning', 'main_word', 'poses')
+        insert_sense_sql = make_insert_query('senses', fields, cur)
 
         count = len(concepts)
         i = 0
@@ -147,7 +153,7 @@ def transform_ruthes_to_ruwordnet():
                     'definition': concept['gloss'],
                     'part_of_speech': pos
                 }
-                if dry_run:
+                if ARGS.dry_run:
                     print(synset_data)
                 else:
                     cur.execute(insert_synset_sql, synset_data)
@@ -167,12 +173,12 @@ def transform_ruthes_to_ruwordnet():
                     'main_word': entry['main_word'],
                     'poses': entry['poses'],
                 }
-                if dry_run:
+                if ARGS.dry_run:
                     print(sense_data)
                 else:
                     cur.execute(insert_sense_sql, sense_data)
 
-            if not dry_run:
+            if not ARGS.dry_run:
                 print('\rProgress: {0}% ({1})'.format(round(i / count * 100), i), end='', flush=True)
 
         print('\nProcessing relations...')
@@ -189,7 +195,7 @@ def transform_ruthes_to_ruwordnet():
                             'child_id': child_uuid,
                             'name': 'derivational',
                         }
-                        if dry_run:
+                        if ARGS.dry_run:
                             print(relation_data)
                         else:
                             cur.execute(insert_relation_sql, relation_data)
@@ -213,11 +219,11 @@ def transform_ruthes_to_ruwordnet():
                                 'child_id': to_concept['uuids'][pos],
                                 'name': relation_name,
                             }
-                            if dry_run:
+                            if ARGS.dry_run:
                                 print(relation_data)
                             else:
                                 cur.execute(insert_relation_sql, relation_data)
-            if not dry_run:
+            if not ARGS.dry_run:
                 print('\rProgress: {0}% ({1})'.format(round(i / count * 100), i), end='', flush=True)
         conn.commit()
         print()
@@ -313,6 +319,7 @@ def get_relation_name(rel_type, asp, pos):
             'АНТОНИМ': 'antonym',
             'ЭКЗЕМПЛЯР': 'instance hyponym',
             'КЛАСС': 'instance hypernym',
+            'ДОМЕН': 'domain',
         },
         'V': {
             'АСЦ2': None,
@@ -325,6 +332,7 @@ def get_relation_name(rel_type, asp, pos):
             'АНТОНИМ': 'antonym',
             'ЭКЗЕМПЛЯР': None,
             'КЛАСС': None,
+            'ДОМЕН': 'domain',
         },
         'Adj': {
             'АСЦ2': None,
@@ -337,6 +345,7 @@ def get_relation_name(rel_type, asp, pos):
             'АНТОНИМ': 'antonym',
             'ЭКЗЕМПЛЯР': None,
             'КЛАСС': None,
+            'ДОМЕН': 'domain',
         }
     }
 
@@ -346,34 +355,5 @@ def get_relation_name(rel_type, asp, pos):
     return rel_map[pos][rel_type]
 
 
-def create_indexes():
-    print('Creating indexes')
-    filename = os.path.join(PKG_ROOT, 'sql', 'script_create_constraints.sql')
-    run_sql_file(filename)
-
-
-def run_sql_file(filename):
-    print('Run sql from ' + filename)
-    if dry_run:
-        print('Not really, because of dry-run mode')
-        return
-    pg_env = os.environ.copy()
-    pg_env.update({'PGPASSWORD': dbconfig['password']})
-    cmd_str = 'psql -U {user} -d {database} -h {host} -f {filename}'.format(filename=filename, **dbconfig)
-    process = Popen(cmd_str, stdout=PIPE, stdin=PIPE, shell=True, env=pg_env)
-    stdout, stderr = process.communicate()
-    if stderr is None:
-        print(stdout.decode())
-    else:
-        print(stderr.decode())
-    return stderr is None
-
-
-def init_db():
-    print('Preparing database')
-    filename = os.path.join(PKG_ROOT, 'sql', 'script_prepare_db.sql')
-    run_sql_file(filename)
-
-
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

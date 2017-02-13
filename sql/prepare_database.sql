@@ -85,4 +85,6 @@ INSERT INTO relation_types (name, reverse_relation_name, parent_name) VALUES
   ('substance meronym', 'substance holonym', 'meronym'),
   ('part holonym', 'part meronym', 'holonym'),
   ('part meronym', 'part holonym', 'meronym'),
+  ('domain', 'domain member', NULL),
+  ('domain member', 'domain', NULL),
   ('derivational', 'derivational', NULL);

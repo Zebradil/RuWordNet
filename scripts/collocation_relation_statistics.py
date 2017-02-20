@@ -242,10 +242,7 @@ def main():
             detailed_words = []
             for word in words:
                 if word in blacklist:
-                    if test:
-                        continue
-                    else:
-                        break
+                    continue
                 checked_words += 1
                 string = word + ' - '
                 params = {

@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 
-from lxml import etree
 from psycopg2 import connect, extras
 
 parser = argparse.ArgumentParser(description='Extract collocation composition information from RuThes and RuWordNet.')
-parser.add_argument(
-    '-o',
-    '--output-file',
-    type=str,
-    help='In that file xml will be written',
-    default=None
-)
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
 parser.add_argument(
     '-c',
@@ -181,14 +173,23 @@ def prepare_sense_existance_check_query(cursor):
     cursor.execute('PREPARE check_sense_existence AS ' + sql)
 
 
+def make_insert_query(table, fields, cur):
+    fields_str = ', '.join(str(v) for v in fields)
+    dollars = ', '.join('$' + str(i + 1) for i in range(len(fields)))
+    placeholders = ', '.join('%({0})s'.format(f) for f in fields)
+
+    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
+
+    sql = 'PREPARE prepared_query_{table} AS '.format(table=table) + \
+          'INSERT INTO {tbl} ({fields}) VALUES ({dollars})' \
+              .format(fields=fields_str, dollars=dollars, tbl=table)
+
+    cur.execute(sql)
+    return sql_str
+
+
 def main():
     test = ARGS.test
-    if not test:
-        # Testing if file is writeable
-        open(ARGS.output_file, 'w').close()
-        root = etree.Element('senses')
-    else:
-        root = None
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
             conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
@@ -207,6 +208,7 @@ def main():
         if not test:
             print('prepare_search_sense_query', flush=True)
             prepare_search_sense_query(cur2)
+            insert_relation_sql = make_insert_query('sense_relations', ('parent_id', 'child_id', 'name'), cur)
 
         print('search collocations', flush=True)
         sql = """
@@ -319,30 +321,27 @@ def main():
             if checked_words == words_with_relations:
                 counters['collocationsAllRelations'] += 1
                 if not test:
-                    x_sense = etree.SubElement(root, 'sense')
-                    x_sense.set('name', row['name'])
-                    x_sense.set('id', row['id'])
-                    x_sense.set('synset_id', row['synset_id'])
-                    x_rel = etree.SubElement(x_sense, 'composed_of')
+                    params = {
+                        'parent_id': row['id'],
+                        'name': 'composed_of',
+                    }
                     for word in detailed_words:
                         cur2.execute('EXECUTE search_sense(%(name)s)', {'name': word})
                         row_lexeme = cur2.fetchone()
                         if row_lexeme:
-                            x_lexeme = etree.SubElement(x_rel, 'sense')
-                            x_lexeme.set('name', row_lexeme['name'])
-                            x_lexeme.set('id', row_lexeme['id'])
-                            x_lexeme.set('synset_id', row_lexeme['synset_id'])
+                            cur2.execute(insert_relation_sql, {'child_id': row_lexeme['id'], **params})
 
             elif words_with_relations == 0:
                 counters['collocationsNoRelations'] += 1
 
-            print(flush=True)
-            params = {
-                'synset_id': row['synset_id'],
-            }
-            cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s)', params)
-            for rel_row in cur2:
-                print(rel_row['rel_name'] + ': ' + ', '.join(rel_row['senses']), flush=True)
+            if test:
+                print(flush=True)
+                params = {
+                    'synset_id': row['synset_id'],
+                }
+                cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s)', params)
+                for rel_row in cur2:
+                    print(rel_row['rel_name'] + ': ' + ', '.join(rel_row['senses']), flush=True)
 
         print(flush=True)
         print('Словосочетаний: ' + str(counters['collocations']))
@@ -354,10 +353,6 @@ def main():
         print('Количество связей:')
         for relation, count in counters['relations'].items():
             print(relation + ' — ' + str(count))
-
-        if not test:
-            tree = etree.ElementTree(root)
-            tree.write(ARGS.output_file, encoding="utf-8", pretty_print=True)
 
     print('Done')
 

@@ -219,8 +219,9 @@ def main():
                         x_lexeme.set('id', row_lexeme['id'])
                         x_lexeme.set('synset_id', row_lexeme['synset_id'])
 
-        tree = etree.ElementTree(root)
-        tree.write(ARGS.output_file, encoding="utf-8", pretty_print=True)
+        if not test:
+            tree = etree.ElementTree(root)
+            tree.write(ARGS.output_file, encoding="utf-8", pretty_print=True)
 
     print('Done')
 

@@ -7,6 +7,8 @@ CREATE TABLE concepts (
   domain TEXT
 );
 
+CREATE INDEX ON concepts (name);
+
 CREATE TABLE relations (
   from_id INTEGER, -- REFERENCES concepts (id),
   to_id   INTEGER, -- REFERENCES concepts (id),
@@ -14,6 +16,10 @@ CREATE TABLE relations (
   asp     TEXT,
   PRIMARY KEY (from_id, to_id, name)
 );
+
+CREATE INDEX ON relations (name);
+CREATE INDEX ON relations (from_id);
+CREATE INDEX ON relations (to_id);
 
 CREATE TABLE text_entry (
   id         INTEGER PRIMARY KEY,
@@ -23,6 +29,9 @@ CREATE TABLE text_entry (
   synt_type  TEXT,
   pos_string TEXT
 );
+
+CREATE INDEX ON text_entry (name);
+CREATE INDEX ON text_entry (lemma);
 
 CREATE TABLE synonyms (
   concept_id INTEGER, -- REFERENCES concepts (id),
@@ -40,6 +49,9 @@ CREATE TABLE synsets (
   UNIQUE (name, part_of_speech)
 );
 
+CREATE INDEX ON synsets (name);
+CREATE INDEX ON synsets (part_of_speech);
+
 CREATE TABLE senses (
   id        UUID PRIMARY KEY,
   synset_id UUID REFERENCES synsets (id),
@@ -51,6 +63,9 @@ CREATE TABLE senses (
   meaning   SMALLINT,
   UNIQUE (name, synset_id)
 );
+
+CREATE INDEX ON senses (name);
+CREATE INDEX ON senses (lemma);
 
 CREATE TABLE relation_types (
   name                  TEXT PRIMARY KEY,
@@ -65,12 +80,20 @@ CREATE TABLE sense_relations (
   PRIMARY KEY (parent_id, child_id, name)
 );
 
+CREATE INDEX ON sense_relations (parent_id);
+CREATE INDEX ON sense_relations (child_id);
+CREATE INDEX ON sense_relations (name);
+
 CREATE TABLE synset_relations (
   parent_id UUID REFERENCES synsets (id),
   child_id  UUID REFERENCES synsets (id),
   name      TEXT REFERENCES relation_types (name),
   PRIMARY KEY (parent_id, child_id, name)
 );
+
+CREATE INDEX ON synset_relations (parent_id);
+CREATE INDEX ON synset_relations (child_id);
+CREATE INDEX ON synset_relations (name);
 
 
 INSERT INTO relation_types (name, reverse_relation_name, parent_name) VALUES

@@ -193,7 +193,7 @@ def transform_ruthes_to_ruwordnet():
                         relation_data = {
                             'parent_id': parent_uuid,
                             'child_id': child_uuid,
-                            'name': 'derivational',
+                            'name': 'POS-synonymy',
                         }
                         if ARGS.dry_run:
                             print(relation_data)

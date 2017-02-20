@@ -92,7 +92,7 @@ def prepare_rwn_relation_query(cursor):
               INNER JOIN synset_relations sr
                 ON sr.child_id = se.synset_id
             WHERE sr.parent_id = $1
-                  AND sr.name = 'derivational'
+                  AND sr.name = 'POS-synonymy'
                   AND array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1
             UNION ALL
             SELECT

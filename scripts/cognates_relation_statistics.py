@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 
-from lxml import etree
 from psycopg2 import connect, extras
 
 parser = argparse.ArgumentParser(description='Extract derivation relations from RuThes and RuWordNet.')
-parser.add_argument(
-    '-o',
-    '--output-file',
-    type=str,
-    help='In that file xml will be written',
-    default=None
-)
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
 parser.add_argument(
     '-c',
@@ -23,7 +15,7 @@ parser.add_argument(
 parser.add_argument(
     '-t',
     '--test',
-    help="Only show found relations, don't generate xml file",
+    help="Only show found relations, don't insert new relations in database",
     action='store_true'
 )
 
@@ -129,14 +121,23 @@ def prepare_search_sense(cursor):
     cursor.execute('PREPARE search_sense AS ' + sql)
 
 
+def make_insert_query(table, fields, cur):
+    fields_str = ', '.join(str(v) for v in fields)
+    dollars = ', '.join('$' + str(i + 1) for i in range(len(fields)))
+    placeholders = ', '.join('%({0})s'.format(f) for f in fields)
+
+    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
+
+    sql = 'PREPARE prepared_query_{table} AS '.format(table=table) + \
+          'INSERT INTO {tbl} ({fields}) VALUES ({dollars})' \
+              .format(fields=fields_str, dollars=dollars, tbl=table)
+
+    cur.execute(sql)
+    return sql_str
+
+
 def main():
     test = ARGS.test
-    if not test:
-        # Testing if file is writeable
-        open(ARGS.output_file, 'w').close()
-        root = etree.Element('senses')
-    else:
-        root = None
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
             conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
@@ -149,6 +150,7 @@ def main():
         if not test:
             print('prepare_search_sense', flush=True)
             prepare_search_sense(cur2)
+            insert_relation_sql = make_insert_query('sense_relations', ('parent_id', 'child_id', 'name'), cur)
 
         print('search collocations', flush=True)
         sql = """
@@ -205,23 +207,15 @@ def main():
                         lexemes.append(senses_chain['name'])
 
             if not test and lexemes:
-                x_sense = etree.SubElement(root, 'sense')
-                x_sense.set('name', row['name'])
-                x_sense.set('id', row['id'])
-                x_sense.set('synset_id', row['synset_id'])
-                x_rel = etree.SubElement(x_sense, 'derived_from')
+                params = {
+                    'parent_id': row['id'],
+                    'name': 'derived_from',
+                }
                 for lexeme in set(lexemes):
                     cur2.execute('EXECUTE search_sense(%(name)s)', {'name': lexeme})
                     row_lexeme = cur2.fetchone()
                     if row_lexeme:
-                        x_lexeme = etree.SubElement(x_rel, 'sense')
-                        x_lexeme.set('name', row_lexeme['name'])
-                        x_lexeme.set('id', row_lexeme['id'])
-                        x_lexeme.set('synset_id', row_lexeme['synset_id'])
-
-        if not test:
-            tree = etree.ElementTree(root)
-            tree.write(ARGS.output_file, encoding="utf-8", pretty_print=True)
+                        cur2.execute(insert_relation_sql, {'child_id': row_lexeme['id'], **params})
 
     print('Done')
 

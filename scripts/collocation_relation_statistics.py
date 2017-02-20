@@ -2,6 +2,7 @@
 import argparse
 
 from psycopg2 import connect, extras
+from psycopg2._psycopg import IntegrityError
 
 parser = argparse.ArgumentParser(description='Extract collocation composition information from RuThes and RuWordNet.')
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -329,7 +330,11 @@ def main():
                         cur2.execute('EXECUTE search_sense(%(name)s)', {'name': word})
                         row_lexeme = cur2.fetchone()
                         if row_lexeme:
-                            cur2.execute(insert_relation_sql, {'child_id': row_lexeme['id'], **params})
+                            try:
+                                cur2.execute(insert_relation_sql, {'child_id': row_lexeme['id'], **params})
+                            except IntegrityError:
+                                # Бывают словосочетания, образованные из одного слова (МАТЬ → МАТЬ МАТЕРИ)
+                                pass
 
             elif words_with_relations == 0:
                 counters['collocationsNoRelations'] += 1

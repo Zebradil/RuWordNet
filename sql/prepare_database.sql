@@ -89,4 +89,6 @@ INSERT INTO relation_types (name, reverse_relation_name, parent_name) VALUES
   ('domain member', 'domain', NULL),
   ('cause', NULL, NULL),
   ('entailment', NULL, NULL),
+  ('derived_from', NULL, NULL),
+  ('composed_of', NULL, NULL),
   ('POS-synonymy', 'POS-synonymy', NULL);

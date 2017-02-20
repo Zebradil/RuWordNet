@@ -23,6 +23,7 @@ parser.add_argument(
 ARGS = parser.parse_args()
 
 conn = connect(ARGS.connection_string)
+conn.autocommit = True
 
 
 def prepare_search_cognates(cursor):

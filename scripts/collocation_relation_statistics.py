@@ -36,7 +36,7 @@ blacklist = ['И', 'ДА', 'ЖЕ', 'ТО', 'ИЛИ', 'КАК', 'РАЗ', 'ТАК
 ARGS = parser.parse_args()
 
 conn = connect(ARGS.connection_string)
-
+conn.autocommit = True
 
 def prepare_search_sense_query(cursor):
     sql = """

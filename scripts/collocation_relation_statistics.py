@@ -1,13 +1,31 @@
 #!/usr/bin/env python3
+import argparse
 
+from lxml import etree
 from psycopg2 import connect, extras
 
-dbconfig = {
-    'database': 'ruthes',
-    'user': 'ruwordnet',
-    'password': 'ruwordnet',
-    'host': '127.0.0.1'
-}
+parser = argparse.ArgumentParser(description='Extract collocation composition information from RuThes and RuWordNet.')
+parser.add_argument(
+    '-o',
+    '--output-file',
+    type=str,
+    help='In that file xml will be written',
+    default=None
+)
+connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser.add_argument(
+    '-c',
+    '--connection-string',
+    type=str,
+    help="Postgresql database connection string ({})".format(connection_string),
+    default=connection_string
+)
+parser.add_argument(
+    '-t',
+    '--test',
+    help="Only show found relations, don't generate xml file",
+    action='store_true'
+)
 
 blacklist = ['И', 'ДА', 'ЖЕ', 'ТО', 'ИЛИ', 'КАК', 'РАЗ', 'ТАК', 'ЧТО', 'ЛИШЬ', 'БУДТО', 'ПОСЛЕ', 'ТОЧНО', 'ЧТОБЫ',
              'СЛОВНО', 'Д', 'Ж', 'И', 'О', 'С', 'Ф', 'Х', 'В', 'И', 'К', 'О', 'С', 'У', 'Х', 'А-ЛЯ', 'ВО', 'ДО', 'ЗА',
@@ -22,7 +40,23 @@ blacklist = ['И', 'ДА', 'ЖЕ', 'ТО', 'ИЛИ', 'КАК', 'РАЗ', 'ТАК
              'СТАРАТЕЛЬНО', 'БЫ', 'ЖЕ', 'НЕ', 'НИ', 'ТО', 'ВОН', 'ЕЩЕ', 'НЕТ', 'УЖЕ', 'СЕБЯ', 'ТОГО', 'ВСЕГО', 'ДОБРО',
              'ПРОСТО', 'ХОРОШО']
 
-conn = connect(**dbconfig)
+ARGS = parser.parse_args()
+
+conn = connect(ARGS.connection_string)
+
+
+def prepare_search_sense_query(cursor):
+    sql = """
+        SELECT
+          id,
+          name,
+          synset_id
+        FROM senses
+        WHERE lemma = $1
+        ORDER BY meaning
+        LIMIT 1"""
+
+    cursor.execute('PREPARE search_sense AS ' + sql)
 
 
 def prepare_rwn_word_relation_query(cursor):
@@ -148,6 +182,14 @@ def prepare_sense_existance_check_query(cursor):
 
 
 def main():
+    test = ARGS.test
+    if not test:
+        # Testing if file is writeable
+        open(ARGS.output_file, 'w').close()
+        root = etree.Element('senses')
+    else:
+        root = None
+
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
             conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
 
@@ -162,9 +204,14 @@ def main():
         print('prepare_sense_existance_check_query', flush=True)
         prepare_sense_existance_check_query(cur2)
 
+        if not test:
+            print('prepare_search_sense_query', flush=True)
+            prepare_search_sense_query(cur2)
+
         print('search collocations', flush=True)
         sql = """
           SELECT
+            id,
             name,
             lemma,
             synset_id
@@ -191,9 +238,14 @@ def main():
             words_with_relations = 0
             checked_words = 0
 
-            for word in row['lemma'].split():
+            words = row['lemma'].split()
+            detailed_words = []
+            for word in words:
                 if word in blacklist:
-                    continue
+                    if test:
+                        continue
+                    else:
+                        break
                 checked_words += 1
                 string = word + ' - '
                 params = {
@@ -260,6 +312,7 @@ def main():
                     string += n
 
                 if n is not None:
+                    detailed_words.append(word)
                     if n not in counters['relations']:
                         counters['relations'][n] = 0
                     counters['relations'][n] += 1
@@ -268,6 +321,21 @@ def main():
                 print(string, flush=True)
             if checked_words == words_with_relations:
                 counters['collocationsAllRelations'] += 1
+                if not test:
+                    x_sense = etree.SubElement(root, 'sense')
+                    x_sense.set('name', row['name'])
+                    x_sense.set('id', row['id'])
+                    x_sense.set('synset_id', row['synset_id'])
+                    x_rel = etree.SubElement(x_sense, 'composed_of')
+                    for word in detailed_words:
+                        cur2.execute('EXECUTE search_sense(%(name)s)', {'name': word})
+                        row_lexeme = cur2.fetchone()
+                        if row_lexeme:
+                            x_lexeme = etree.SubElement(x_rel, 'sense')
+                            x_lexeme.set('name', row_lexeme['name'])
+                            x_lexeme.set('id', row_lexeme['id'])
+                            x_lexeme.set('synset_id', row_lexeme['synset_id'])
+
             elif words_with_relations == 0:
                 counters['collocationsNoRelations'] += 1
 
@@ -289,6 +357,10 @@ def main():
         print('Количество связей:')
         for relation, count in counters['relations'].items():
             print(relation + ' — ' + str(count))
+
+        if not test:
+            tree = etree.ElementTree(root)
+            tree.write(ARGS.output_file, encoding="utf-8", pretty_print=True)
 
     print('Done')
 

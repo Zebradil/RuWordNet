@@ -1,6 +1,9 @@
 .idea
 *.swp
 *.log
+.DS_Store
+__pycache__
+*~
 xml2sql/xml/*
 sql2lex/out/*
 sql2xml/out/*

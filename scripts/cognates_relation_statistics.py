@@ -441,8 +441,8 @@ def main():
 
             for name in ('ВЫШЕ', 'НИЖЕ', 'ЧАСТЬ', 'ЦЕЛОЕ'):
                 if name == 'ВЫШЕ':
-                    tail_names = ['АСЦ', 'ЧАСТЬ']
-                elif name == 'ЧАСТЬ':
+                    tail_names = ['АСЦ', 'ЦЕЛОЕ']
+                elif name == 'ЦЕЛОЕ':
                     tail_names = ['АСЦ']
                 else:
                     tail_names = ['']

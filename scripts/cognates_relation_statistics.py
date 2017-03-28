@@ -4,7 +4,6 @@
 # pylint: disable=C0111
 
 import argparse
-import re
 
 from psycopg2 import connect, extras
 from psycopg2._psycopg import IntegrityError
@@ -202,6 +201,16 @@ prefix_exceptions = (
     'ЗАВИД', 'ЗАВИСТ',
 )
 
+predefined_cognates = {}
+with open('predefined_cognates.txt', 'r') as f:
+    for line in f:
+        word1, word2 = line.strip().split(' ')
+        if word1 not in predefined_cognates:
+            predefined_cognates[word1] = []
+        if word2 not in predefined_cognates:
+            predefined_cognates[word2] = []
+        predefined_cognates[word1].append(word2)
+        predefined_cognates[word2].append(word1)
 
 def prepare_search_cognates(cursor):
     sql = r"""
@@ -347,6 +356,10 @@ def is_cognates(word1, word2):
     if word1 == word2:
         print('same word')
         return False
+    if word1 in predefined_cognates:
+        if word2 in predefined_cognates[word1]:
+            print('from predefined list')
+            return True
     words1 = remove_prefixes(word1)
     words2 = remove_prefixes(word2)
     for sub1 in words1:

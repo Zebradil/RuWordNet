@@ -62,7 +62,8 @@ class Generator:
             cur.execute('SELECT * FROM senses')
             rows = cur.fetchall()
             self.senses = {row['id']: {**row, **{'synset_id': synsets_by_id[row['synset_id']]['index'],
-                                                 'id': self.gen_sense_index(row)}} for row in rows}
+                                                 'id': self.gen_sense_index(row),
+                                                 'meaning': int(row['meaning']) + 1}} for row in rows}
 
             print('synset relations')
             cur.execute('SELECT * FROM synset_relations')

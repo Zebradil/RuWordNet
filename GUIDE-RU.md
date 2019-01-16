@@ -4,7 +4,7 @@
 
 Для работы потребуются:
 
-- python3 (пакеты: psycopg2, lxml, argparse, os, re, csv, getopt, sys, uuid),
+- python3 (дополнительные пакеты: psycopg2, lxml, argparse),
 - postgresql9.6 (9.5 тоже должна подойти)
 
 ## Стандартный порядок действий

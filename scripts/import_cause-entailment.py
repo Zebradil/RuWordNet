@@ -7,26 +7,16 @@ import re
 from psycopg2 import connect
 from psycopg2 import extras
 
-parser = argparse.ArgumentParser(description='Import cause or entailment relations to RuThes database.')
-parser.add_argument(
-    '-s',
-    '--source-file',
-    type=str,
-    help='Source csv file'
-)
-parser.add_argument(
-    '--name',
-    type=str,
-    help='Relation name',
-    choices=['cause', 'entailment']
-)
+parser = argparse.ArgumentParser(description="Import cause or entailment relations to RuThes database.")
+parser.add_argument("-s", "--source-file", type=str, help="Source csv file")
+parser.add_argument("--name", type=str, help="Relation name", choices=["cause", "entailment"])
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
 parser.add_argument(
-    '-c',
-    '--connection-string',
+    "-c",
+    "--connection-string",
     type=str,
     help="Postgresql database connection string ({})".format(connection_string),
-    default=connection_string
+    default=connection_string,
 )
 
 ARGS = parser.parse_args()
@@ -34,15 +24,17 @@ ARGS = parser.parse_args()
 filename = ARGS.source_file
 
 if not os.path.isfile(filename):
-    print('File not exists')
+    print("File not exists")
     exit()
 
 conn = connect(ARGS.connection_string)
-with open(filename) as file, \
-        conn.cursor(cursor_factory=extras.DictCursor) as dict_cur, \
-        conn.cursor(cursor_factory=extras.DictCursor) as cur:
-    prepare = "PREPARE insert_relations AS " \
-              "INSERT INTO synset_relations (parent_id, child_id, name) VALUES ($1, $2, '" + ARGS.name + "')"
+with open(filename) as file, conn.cursor(cursor_factory=extras.DictCursor) as dict_cur, conn.cursor(
+    cursor_factory=extras.DictCursor
+) as cur:
+    prepare = (
+        "PREPARE insert_relations AS "
+        "INSERT INTO synset_relations (parent_id, child_id, name) VALUES ($1, $2, '" + ARGS.name + "')"
+    )
     dict_cur.execute(prepare)
 
     find_synset_sql = """
@@ -99,37 +91,34 @@ FROM (
     ON s2.syid1 = s1.syid2
        AND s2.syid2 = s1.syid1"""
 
-    re_synset = re.compile('^.:\s+(.*)$')
+    re_synset = re.compile("^.:\s+(.*)$")
 
     for line_a in file:
         line_b = file.readline()
 
         senses_match = re_synset.search(line_a)
         if senses_match is None:
-            print('Re error', line_a)
+            print("Re error", line_a)
             continue
 
-        senses_a = list(sense.strip() for sense in senses_match.group(1).split(';'))
+        senses_a = list(sense.strip() for sense in senses_match.group(1).split(";"))
 
         senses_match = re_synset.search(line_b)
         if senses_match is None:
-            print('Re error', line_b)
+            print("Re error", line_b)
             continue
 
-        senses_b = list(sense.strip() for sense in senses_match.group(1).split(';'))
+        senses_b = list(sense.strip() for sense in senses_match.group(1).split(";"))
 
         dict_cur.execute(find_synset_sql, (senses_a, len(senses_a), senses_b, len(senses_b)))
 
         for row in dict_cur:
-            values = {
-                'parent_id': row['a'],
-                'child_id': row['b'],
-            }
+            values = {"parent_id": row["a"], "child_id": row["b"]}
             try:
-                cur.execute('EXECUTE insert_relations (%(parent_id)s, %(child_id)s)', values)
-                print('Insert', row)
+                cur.execute("EXECUTE insert_relations (%(parent_id)s, %(child_id)s)", values)
+                print("Insert", row)
             except:
-                print('Exists', row)
+                print("Exists", row)
         conn.commit()
 
-print('Done')
+print("Done")

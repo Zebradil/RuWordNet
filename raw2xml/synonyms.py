@@ -8,20 +8,16 @@ from lxml import etree
 
 PKG_ROOT = os.path.split(__file__)[0]
 
-parser = argparse.ArgumentParser(description='Generates RuThes synonyms.xml file from txt data file.')
+parser = argparse.ArgumentParser(description="Generates RuThes synonyms.xml file from txt data file.")
 parser.add_argument(
-    '-s',
-    '--source-file',
-    type=str,
-    help='Source txt file',
-    default=os.path.join(PKG_ROOT, 'data', 'synonyms.txt')
+    "-s", "--source-file", type=str, help="Source txt file", default=os.path.join(PKG_ROOT, "data", "synonyms.txt")
 )
 parser.add_argument(
-    '-d',
-    '--destination-file',
+    "-d",
+    "--destination-file",
     type=str,
-    help='Destination xml file',
-    default=os.path.join(PKG_ROOT, 'out', 'synonyms.xml')
+    help="Destination xml file",
+    default=os.path.join(PKG_ROOT, "out", "synonyms.xml"),
 )
 
 ARGS = parser.parse_args()
@@ -29,7 +25,7 @@ ARGS = parser.parse_args()
 root = etree.Element("synonyms")
 
 with open(ARGS.source_file, "r", encoding="Windows-1251") as inp:
-    rgx = re.compile('\s{2,}')
+    rgx = re.compile("\s{2,}")
     for line in inp:
         spl = rgx.split(line.strip())
 

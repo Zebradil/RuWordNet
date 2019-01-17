@@ -3,20 +3,15 @@
 from psycopg2 import connect
 import pprint
 
-revry_filename = 'in/revry_filtered.txt'
-rubrics_filename = 'in/rubrics_filtered.txt'
+revry_filename = "in/revry_filtered.txt"
+rubrics_filename = "in/rubrics_filtered.txt"
 
-dbconfig = {
-    'database': 'ruwordnet',
-    'user': 'ruwordnet',
-    'password': 'ruwordnet',
-    'host': '127.0.0.1'
-}
+dbconfig = {"database": "ruwordnet", "user": "ruwordnet", "password": "ruwordnet", "host": "127.0.0.1"}
 
 rubrics = {}
 with open(rubrics_filename) as f:
     for line in f:
-        parts = line.strip().split(' ', 1)
+        parts = line.strip().split(" ", 1)
         if len(parts) != 2:
             continue
         rubrics.update(dict([parts]))
@@ -24,7 +19,7 @@ with open(rubrics_filename) as f:
 revry = {}
 with open(revry_filename) as f:
     for line in f:
-        parts = line.strip().split(' ', 1)
+        parts = line.strip().split(" ", 1)
         if len(parts) != 2:
             continue
         if parts[1] not in revry:
@@ -42,11 +37,8 @@ with conn.cursor() as cur:
     for concept_id, domains in revry.items():
         for domain_id in domains:
             if domain_id in rubrics:
-                values = {
-                    'from_id': concept_id,
-                    'to_id': rubrics[domain_id],
-                }
-                cur.execute('EXECUTE insert_relation (%(from_id)s, %(to_id)s)', values)
+                values = {"from_id": concept_id, "to_id": rubrics[domain_id]}
+                cur.execute("EXECUTE insert_relation (%(from_id)s, %(to_id)s)", values)
             else:
-                print('Not found: ', domain_id)
+                print("Not found: ", domain_id)
     conn.commit()

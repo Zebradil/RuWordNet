@@ -8,28 +8,24 @@ from lxml import etree
 
 PKG_ROOT = os.path.split(__file__)[0]
 
-parser = argparse.ArgumentParser(description='Generates RuThes relations.xml file from txt data file.')
+parser = argparse.ArgumentParser(description="Generates RuThes relations.xml file from txt data file.")
 parser.add_argument(
-    '-s',
-    '--source-file',
-    type=str,
-    help='Source txt file',
-    default=os.path.join(PKG_ROOT, 'data', 'relats.txt')
+    "-s", "--source-file", type=str, help="Source txt file", default=os.path.join(PKG_ROOT, "data", "relats.txt")
 )
 parser.add_argument(
-    '-d',
-    '--destination-file',
+    "-d",
+    "--destination-file",
     type=str,
-    help='Destination xml file',
-    default=os.path.join(PKG_ROOT, 'out', 'relations.xml')
+    help="Destination xml file",
+    default=os.path.join(PKG_ROOT, "out", "relations.xml"),
 )
 
 ARGS = parser.parse_args()
 
 root = etree.Element("relations")
 
-with open(ARGS.source_file, "r", encoding='Windows-1251') as inp:
-    rgx = re.compile('\s+')
+with open(ARGS.source_file, "r", encoding="Windows-1251") as inp:
+    rgx = re.compile("\s+")
     for line in inp:
         spl = rgx.split(line.strip())
 

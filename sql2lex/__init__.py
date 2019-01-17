@@ -1,1 +1,1 @@
-__author__ = 'german'
+__author__ = "german"

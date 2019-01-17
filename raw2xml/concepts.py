@@ -8,59 +8,55 @@ from lxml import etree
 
 PKG_ROOT = os.path.split(__file__)[0]
 
-parser = argparse.ArgumentParser(description='Generates RuThes concepts.xml file from txt data file.')
+parser = argparse.ArgumentParser(description="Generates RuThes concepts.xml file from txt data file.")
 parser.add_argument(
-    '-s',
-    '--source-file',
-    type=str,
-    help='Source txt file',
-    default=os.path.join(PKG_ROOT, 'data', 'concepts.txt')
+    "-s", "--source-file", type=str, help="Source txt file", default=os.path.join(PKG_ROOT, "data", "concepts.txt")
 )
 parser.add_argument(
-    '-g',
-    '--gloss-file',
+    "-g",
+    "--gloss-file",
     type=str,
-    help='Additional source txt file with context gloss',
-    default=os.path.join(PKG_ROOT, 'data', 'concept_gloss_text_ready.txt')
+    help="Additional source txt file with context gloss",
+    default=os.path.join(PKG_ROOT, "data", "concept_gloss_text_ready.txt"),
 )
 parser.add_argument(
-    '-d',
-    '--destination-file',
+    "-d",
+    "--destination-file",
     type=str,
-    help='Destination xml file',
-    default=os.path.join(PKG_ROOT, 'out', 'concepts.xml')
+    help="Destination xml file",
+    default=os.path.join(PKG_ROOT, "out", "concepts.xml"),
 )
 
 ARGS = parser.parse_args()
 
 concepts = {}
 
-with open(ARGS.source_file, "r", encoding='Windows-1251') as inp:
-    rgx = re.compile('^(\d+)\s+(.+)\s+(\d+)$')
+with open(ARGS.source_file, "r", encoding="Windows-1251") as inp:
+    rgx = re.compile("^(\d+)\s+(.+)\s+(\d+)$")
     for line in inp:
         # I've got file with spaces instead of tabs, so it won't work
         # spl = line.split('\t')
         # concepts[spl[0]] = spl[1:] + [""]
         spl = rgx.findall(line)[0]
-        concepts[spl[0]] = [spl[1].strip(), spl[2], '']
+        concepts[spl[0]] = [spl[1].strip(), spl[2], ""]
 
 concept = None
-gloss = ''
-with open(ARGS.gloss_file, "r", encoding='Windows-1251') as inp:
+gloss = ""
+with open(ARGS.gloss_file, "r", encoding="Windows-1251") as inp:
     for line in inp:
-        spl = line.split('\t')
+        spl = line.split("\t")
         if len(spl) == 2:
             if len(gloss):
                 if concept and concept[0] in concepts:
                     concepts[concept[0]][-1] = gloss.strip()
                 elif concept:
-                    print('Concept not found', concept, gloss)
+                    print("Concept not found", concept, gloss)
                 else:
-                    print('Gloss without concept', gloss)
-            gloss = ''
+                    print("Gloss without concept", gloss)
+            gloss = ""
             concept = spl
             continue
-        gloss = gloss + ' ' + line.strip()
+        gloss = gloss + " " + line.strip()
 
 root = etree.Element("concepts")
 

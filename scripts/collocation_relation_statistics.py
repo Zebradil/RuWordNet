@@ -4,36 +4,166 @@ import argparse
 from psycopg2 import connect, extras
 from psycopg2._psycopg import IntegrityError
 
-parser = argparse.ArgumentParser(description='Extract collocation composition information from RuThes and RuWordNet.')
+parser = argparse.ArgumentParser(description="Extract collocation composition information from RuThes and RuWordNet.")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
 parser.add_argument(
-    '-c',
-    '--connection-string',
+    "-c",
+    "--connection-string",
     type=str,
     help="Postgresql database connection string ({})".format(connection_string),
-    default=connection_string
+    default=connection_string,
 )
-parser.add_argument(
-    '-t',
-    '--test',
-    help="Only show found relations, don't generate xml file",
-    action='store_true'
-)
+parser.add_argument("-t", "--test", help="Only show found relations, don't generate xml file", action="store_true")
 
 ARGS = parser.parse_args()
 
-blacklist = ['И', 'ДА', 'ЖЕ', 'ТО', 'ИЛИ', 'КАК', 'РАЗ', 'ТАК', 'ЧТО', 'ЛИШЬ', 'БУДТО', 'ПОСЛЕ', 'ТОЧНО', 'ЧТОБЫ',
-             'СЛОВНО', 'Д', 'Ж', 'И', 'О', 'С', 'Ф', 'Х', 'В', 'И', 'К', 'О', 'С', 'У', 'Х', 'А-ЛЯ', 'ВО', 'ДО', 'ЗА',
-             'ИЗ', 'КО', 'НА', 'ОБ', 'ОТ', 'ПО', 'СО', 'ИЗ-ПОД', 'БЕЗ', 'ВНЕ', 'ДЛЯ', 'ИЗО', 'НАД', 'ОТО', 'ПОД', 'ПРИ',
-             'ПРО', 'ЧТО', 'ВЫШЕ', 'МИМО', 'РАДИ', 'СЕБЯ', 'ВНИЗУ', 'МЕЖДУ', 'ПЕРЕД', 'ПОСЛЕ', 'САМЫЙ', 'СВЕРХ',
-             'СЗАДИ', 'СНИЗУ', 'СРЕДИ', 'ЧЕРЕЗ', 'ВМЕСТО', 'ВНУТРИ', 'ВНУТРЬ', 'ВОКРУГ', 'ВПЕРЕД', 'НАСЧЕТ', 'ПОЗАДИ',
-             'ПРОТИВ', 'СВЕРХУ', 'СКВОЗЬ', 'СЛОВНО', 'ВПЕРЕДИ', 'ИЗНУТРИ', 'СДЕЛАТЬ', 'СПЕРЕДИ', 'СТОРОНА', 'НАПРОТИВ',
-             'СОГЛАСНО', 'ОТНОСИТЕЛЬНО', 'О', 'Я', 'НА', 'ОН', 'ТЫ', 'ВСЕ', 'ЕГО', 'КТО', 'МОЙ', 'НАШ', 'ОБА', 'ОНИ',
-             'САМ', 'ТАК', 'ТОМ', 'ТОТ', 'ЧТО', 'ЧЕЙ-ТО', 'КТО-НИБУДЬ', 'ВЕСЬ', 'ВСЕЙ', 'ИНОЙ', 'ОДИН', 'СВОЙ', 'СЕБЯ',
-             'ЭТОТ', 'ВЕСТИ', 'КАКОЙ', 'НИКТО', 'НИЧЕЙ', 'ПЛОХО', 'САМЫЙ', 'СОБОЙ', 'КАКОЙ-ТО', 'ВСЯКИЙ', 'ДАННЫЙ',
-             'ДРУГОЙ', 'КАЖДЫЙ', 'МНОГИЙ', 'МНОГОЕ', 'НЕЧЕГО', 'НИЧЕГО', 'НЕКОТОРЫЙ', 'НЕПОХОЖИЙ', 'ОСТАЛЬНОЙ',
-             'СТАРАТЕЛЬНО', 'БЫ', 'ЖЕ', 'НЕ', 'НИ', 'ТО', 'ВОН', 'ЕЩЕ', 'НЕТ', 'УЖЕ', 'СЕБЯ', 'ТОГО', 'ВСЕГО', 'ДОБРО',
-             'ПРОСТО', 'ХОРОШО']
+blacklist = [
+    "И",
+    "ДА",
+    "ЖЕ",
+    "ТО",
+    "ИЛИ",
+    "КАК",
+    "РАЗ",
+    "ТАК",
+    "ЧТО",
+    "ЛИШЬ",
+    "БУДТО",
+    "ПОСЛЕ",
+    "ТОЧНО",
+    "ЧТОБЫ",
+    "СЛОВНО",
+    "Д",
+    "Ж",
+    "И",
+    "О",
+    "С",
+    "Ф",
+    "Х",
+    "В",
+    "И",
+    "К",
+    "О",
+    "С",
+    "У",
+    "Х",
+    "А-ЛЯ",
+    "ВО",
+    "ДО",
+    "ЗА",
+    "ИЗ",
+    "КО",
+    "НА",
+    "ОБ",
+    "ОТ",
+    "ПО",
+    "СО",
+    "ИЗ-ПОД",
+    "БЕЗ",
+    "ВНЕ",
+    "ДЛЯ",
+    "ИЗО",
+    "НАД",
+    "ОТО",
+    "ПОД",
+    "ПРИ",
+    "ПРО",
+    "ЧТО",
+    "ВЫШЕ",
+    "МИМО",
+    "РАДИ",
+    "СЕБЯ",
+    "ВНИЗУ",
+    "МЕЖДУ",
+    "ПЕРЕД",
+    "ПОСЛЕ",
+    "САМЫЙ",
+    "СВЕРХ",
+    "СЗАДИ",
+    "СНИЗУ",
+    "СРЕДИ",
+    "ЧЕРЕЗ",
+    "ВМЕСТО",
+    "ВНУТРИ",
+    "ВНУТРЬ",
+    "ВОКРУГ",
+    "ВПЕРЕД",
+    "НАСЧЕТ",
+    "ПОЗАДИ",
+    "ПРОТИВ",
+    "СВЕРХУ",
+    "СКВОЗЬ",
+    "СЛОВНО",
+    "ВПЕРЕДИ",
+    "ИЗНУТРИ",
+    "СДЕЛАТЬ",
+    "СПЕРЕДИ",
+    "СТОРОНА",
+    "НАПРОТИВ",
+    "СОГЛАСНО",
+    "ОТНОСИТЕЛЬНО",
+    "О",
+    "Я",
+    "НА",
+    "ОН",
+    "ТЫ",
+    "ВСЕ",
+    "ЕГО",
+    "КТО",
+    "МОЙ",
+    "НАШ",
+    "ОБА",
+    "ОНИ",
+    "САМ",
+    "ТАК",
+    "ТОМ",
+    "ТОТ",
+    "ЧТО",
+    "ЧЕЙ-ТО",
+    "КТО-НИБУДЬ",
+    "ВЕСЬ",
+    "ВСЕЙ",
+    "ИНОЙ",
+    "ОДИН",
+    "СВОЙ",
+    "СЕБЯ",
+    "ЭТОТ",
+    "ВЕСТИ",
+    "КАКОЙ",
+    "НИКТО",
+    "НИЧЕЙ",
+    "ПЛОХО",
+    "САМЫЙ",
+    "СОБОЙ",
+    "КАКОЙ-ТО",
+    "ВСЯКИЙ",
+    "ДАННЫЙ",
+    "ДРУГОЙ",
+    "КАЖДЫЙ",
+    "МНОГИЙ",
+    "МНОГОЕ",
+    "НЕЧЕГО",
+    "НИЧЕГО",
+    "НЕКОТОРЫЙ",
+    "НЕПОХОЖИЙ",
+    "ОСТАЛЬНОЙ",
+    "СТАРАТЕЛЬНО",
+    "БЫ",
+    "ЖЕ",
+    "НЕ",
+    "НИ",
+    "ТО",
+    "ВОН",
+    "ЕЩЕ",
+    "НЕТ",
+    "УЖЕ",
+    "СЕБЯ",
+    "ТОГО",
+    "ВСЕГО",
+    "ДОБРО",
+    "ПРОСТО",
+    "ХОРОШО",
+]
 
 conn = connect(ARGS.connection_string)
 conn.autocommit = True
@@ -50,7 +180,7 @@ def prepare_search_sense_query(cursor):
         ORDER BY meaning
         LIMIT 1"""
 
-    cursor.execute('PREPARE search_sense AS ' + sql)
+    cursor.execute("PREPARE search_sense AS " + sql)
 
 
 def prepare_rwn_word_relation_query(cursor):
@@ -67,7 +197,7 @@ def prepare_rwn_word_relation_query(cursor):
       WHERE lemma = $2
             AND synset_id = $1
       LIMIT 1"""
-    cursor.execute('PREPARE select_rwn_word_relation AS ' + sql)
+    cursor.execute("PREPARE select_rwn_word_relation AS " + sql)
 
 
 def prepare_rwn_relation_query(cursor):
@@ -99,7 +229,7 @@ def prepare_rwn_relation_query(cursor):
           ) t
         GROUP BY synset_id, rel_name
         ORDER BY rel_name"""
-    cursor.execute('PREPARE select_rwn_relation AS ' + sql)
+    cursor.execute("PREPARE select_rwn_relation AS " + sql)
 
 
 def prepare_ruthes_relation_query(cursor):
@@ -121,7 +251,7 @@ def prepare_ruthes_relation_query(cursor):
       WHERE t.lemma = $1
             AND t2.lemma = $2
       LIMIT 1"""
-    cursor.execute('PREPARE select_ruthes_relation AS ' + sql)
+    cursor.execute("PREPARE select_ruthes_relation AS " + sql)
 
 
 def prepare_transitional_relation_query(cursor):
@@ -164,7 +294,7 @@ def prepare_transitional_relation_query(cursor):
             ON t.id = s.entry_id
         WHERE t.lemma = $1
         LIMIT 1"""
-    cursor.execute('PREPARE select_transited_relation AS ' + sql)
+    cursor.execute("PREPARE select_transited_relation AS " + sql)
 
 
 def prepare_sense_existance_check_query(cursor):
@@ -172,19 +302,19 @@ def prepare_sense_existance_check_query(cursor):
       SELECT
         (SELECT count(1) FROM senses WHERE lemma = $1) sense,
         (SELECT count(1) FROM text_entry WHERE lemma = $1) entry"""
-    cursor.execute('PREPARE check_sense_existence AS ' + sql)
+    cursor.execute("PREPARE check_sense_existence AS " + sql)
 
 
 def make_insert_query(table, fields, cur):
-    fields_str = ', '.join(str(v) for v in fields)
-    dollars = ', '.join('$' + str(i + 1) for i in range(len(fields)))
-    placeholders = ', '.join('%({0})s'.format(f) for f in fields)
+    fields_str = ", ".join(str(v) for v in fields)
+    dollars = ", ".join("$" + str(i + 1) for i in range(len(fields)))
+    placeholders = ", ".join("%({0})s".format(f) for f in fields)
 
     sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
 
-    sql = 'PREPARE prepared_query_{table} AS '.format(table=table) + \
-          'INSERT INTO {tbl} ({fields}) VALUES ({dollars})' \
-              .format(fields=fields_str, dollars=dollars, tbl=table)
+    sql = "PREPARE prepared_query_{table} AS ".format(
+        table=table
+    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(fields=fields_str, dollars=dollars, tbl=table)
 
     cur.execute(sql)
     return sql_str
@@ -193,26 +323,27 @@ def make_insert_query(table, fields, cur):
 def main():
     test = ARGS.test
 
-    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, \
-            conn.cursor(cursor_factory=extras.RealDictCursor) as cur2:
+    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, conn.cursor(
+        cursor_factory=extras.RealDictCursor
+    ) as cur2:
 
-        print('prepare_rwn_word_relation_query', flush=True)
+        print("prepare_rwn_word_relation_query", flush=True)
         prepare_rwn_word_relation_query(cur2)
-        print('prepare_rwn_relation_query', flush=True)
+        print("prepare_rwn_relation_query", flush=True)
         prepare_rwn_relation_query(cur2)
-        print('prepare_ruthes_relation_query', flush=True)
+        print("prepare_ruthes_relation_query", flush=True)
         prepare_ruthes_relation_query(cur2)
-        print('prepare_transitional_relation_query', flush=True)
+        print("prepare_transitional_relation_query", flush=True)
         prepare_transitional_relation_query(cur2)
-        print('prepare_sense_existance_check_query', flush=True)
+        print("prepare_sense_existance_check_query", flush=True)
         prepare_sense_existance_check_query(cur2)
 
         if not test:
-            print('prepare_search_sense_query', flush=True)
+            print("prepare_search_sense_query", flush=True)
             prepare_search_sense_query(cur2)
-            insert_relation_sql = make_insert_query('sense_relations', ('parent_id', 'child_id', 'name'), cur)
+            insert_relation_sql = make_insert_query("sense_relations", ("parent_id", "child_id", "name"), cur)
 
-        print('search collocations', flush=True)
+        print("search collocations", flush=True)
         sql = """
           SELECT
             id,
@@ -224,143 +355,143 @@ def main():
         cur.execute(sql)
 
         counters = {
-            'collocations': 0,
-            'collocationsNoRelations': 0,
-            'collocationsAllRelations': 0,
-            'noRelation': 0,
-            'wordPresented': 0,
-            'relations': {
-
-            },
+            "collocations": 0,
+            "collocationsNoRelations": 0,
+            "collocationsAllRelations": 0,
+            "noRelation": 0,
+            "wordPresented": 0,
+            "relations": {},
         }
-        print('start looping', flush=True)
+        print("start looping", flush=True)
         for row in cur:
             print(flush=True)
-            print(row['name'], ':', flush=True)
-            counters['collocations'] += 1
+            print(row["name"], ":", flush=True)
+            counters["collocations"] += 1
 
             words_with_relations = 0
             checked_words = 0
 
-            words = row['lemma'].split()
+            words = row["lemma"].split()
             detailed_words = []
             for word in words:
                 if word in blacklist:
                     continue
                 checked_words += 1
-                string = word + ' - '
-                params = {
-                    'synset_id': row['synset_id'],
-                    'word': word
-                }
-                cur2.execute('EXECUTE select_rwn_word_relation(%(synset_id)s, %(word)s)', params)
+                string = word + " - "
+                params = {"synset_id": row["synset_id"], "word": word}
+                cur2.execute("EXECUTE select_rwn_word_relation(%(synset_id)s, %(word)s)", params)
                 rwn_relation = cur2.fetchone()
 
                 if rwn_relation is None:
-                    params = {
-                        'collocation': row['lemma'],
-                        'word': word,
-                    }
-                    cur2.execute('EXECUTE select_ruthes_relation(%(word)s, %(collocation)s)', params)
+                    params = {"collocation": row["lemma"], "word": word}
+                    cur2.execute("EXECUTE select_ruthes_relation(%(word)s, %(collocation)s)", params)
                     ruthes_relation = cur2.fetchone()
                     if ruthes_relation is None:
                         chain = None
-                        for name in ('ВЫШЕ', 'НИЖЕ', 'ЧАСТЬ', 'ЦЕЛОЕ'):
-                            if name == 'ВЫШЕ':
-                                tail_names = ['АСЦ', 'ЧАСТЬ']
-                            elif name == 'ЧАСТЬ':
-                                tail_names = ['АСЦ']
+                        for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
+                            if name == "ВЫШЕ":
+                                tail_names = ["АСЦ", "ЧАСТЬ"]
+                            elif name == "ЧАСТЬ":
+                                tail_names = ["АСЦ"]
                             else:
-                                tail_names = ['']
+                                tail_names = [""]
 
                             params = {
-                                'word': word,
-                                'collocation': row['lemma'],
-                                'name': name,
-                                'tail_names': [name] + tail_names
+                                "word": word,
+                                "collocation": row["lemma"],
+                                "name": name,
+                                "tail_names": [name] + tail_names,
                             }
                             cur2.execute(
                                 """EXECUTE select_transited_relation(
-                                    %(word)s, %(collocation)s, %(name)s, %(tail_names)s)""", params)
+                                    %(word)s, %(collocation)s, %(name)s, %(tail_names)s)""",
+                                params,
+                            )
                             senses_chain = cur2.fetchone()
                             if senses_chain is not None:
-                                chain = '(' + name + ') ' + \
-                                        ' → '.join(senses_chain['name_path']) + \
-                                        ' (' + senses_chain['parent_relation_name'] + ')'
+                                chain = (
+                                    "("
+                                    + name
+                                    + ") "
+                                    + " → ".join(senses_chain["name_path"])
+                                    + " ("
+                                    + senses_chain["parent_relation_name"]
+                                    + ")"
+                                )
 
                         if chain is not None:
-                            n = 'ВЫВОД'
+                            n = "ВЫВОД"
                             string += chain
                         else:
                             n = None
-                            string += 'нет'
-                            counters['noRelation'] += 1
-                            cur2.execute('EXECUTE check_sense_existence(%(word)s)', {'word': word})
+                            string += "нет"
+                            counters["noRelation"] += 1
+                            cur2.execute("EXECUTE check_sense_existence(%(word)s)", {"word": word})
                             sense_entry = cur2.fetchone()
-                            if sense_entry['sense'] > 0 or sense_entry['entry'] > 0:
-                                counters['wordPresented'] += 1
+                            if sense_entry["sense"] > 0 or sense_entry["entry"] > 0:
+                                counters["wordPresented"] += 1
                                 existence_strings = []
-                                if sense_entry['entry'] > 0:
-                                    existence_strings.append('есть в РуТез')
-                                if sense_entry['sense'] > 0:
-                                    existence_strings.append('есть в RWN')
-                                string += ' (' + (', '.join(existence_strings)) + ')'
+                                if sense_entry["entry"] > 0:
+                                    existence_strings.append("есть в РуТез")
+                                if sense_entry["sense"] > 0:
+                                    existence_strings.append("есть в RWN")
+                                string += " (" + (", ".join(existence_strings)) + ")"
                     else:
-                        n = ruthes_relation['name']
+                        n = ruthes_relation["name"]
                         string += n
                 else:
-                    n = rwn_relation['name']
+                    n = rwn_relation["name"]
                     string += n
 
                 if n is not None:
                     detailed_words.append(word)
-                    if n not in counters['relations']:
-                        counters['relations'][n] = 0
-                    counters['relations'][n] += 1
+                    if n not in counters["relations"]:
+                        counters["relations"][n] = 0
+                    counters["relations"][n] += 1
                     words_with_relations += 1
 
                 print(string, flush=True)
             if checked_words == words_with_relations:
-                counters['collocationsAllRelations'] += 1
+                counters["collocationsAllRelations"] += 1
                 if not test:
-                    params = {
-                        'parent_id': row['id'],
-                        'name': 'composed_of',
-                    }
+                    params = {"parent_id": row["id"], "name": "composed_of"}
                     for word in detailed_words:
-                        cur2.execute('EXECUTE search_sense(%(name)s)', {'name': word})
+                        cur2.execute("EXECUTE search_sense(%(name)s)", {"name": word})
                         row_lexeme = cur2.fetchone()
                         if row_lexeme:
                             try:
-                                cur2.execute(insert_relation_sql, {'child_id': row_lexeme['id'], **params})
+                                cur2.execute(insert_relation_sql, {"child_id": row_lexeme["id"], **params})
                             except IntegrityError:
                                 # Бывают словосочетания, образованные из одного слова (МАТЬ → МАТЬ МАТЕРИ)
                                 pass
 
             elif words_with_relations == 0:
-                counters['collocationsNoRelations'] += 1
+                counters["collocationsNoRelations"] += 1
 
             if test:
                 print(flush=True)
-                params = {
-                    'synset_id': row['synset_id'],
-                }
-                cur2.execute('EXECUTE select_rwn_relation(%(synset_id)s)', params)
+                params = {"synset_id": row["synset_id"]}
+                cur2.execute("EXECUTE select_rwn_relation(%(synset_id)s)", params)
                 for rel_row in cur2:
-                    print(rel_row['rel_name'] + ': ' + ', '.join(rel_row['senses']), flush=True)
+                    print(rel_row["rel_name"] + ": " + ", ".join(rel_row["senses"]), flush=True)
 
         print(flush=True)
-        print('Словосочетаний: ' + str(counters['collocations']))
-        print('    — со всеми связями: ' + str(counters['collocationsAllRelations']))
-        print('    — без связей: ' + str(counters['collocationsNoRelations']))
+        print("Словосочетаний: " + str(counters["collocations"]))
+        print("    — со всеми связями: " + str(counters["collocationsAllRelations"]))
+        print("    — без связей: " + str(counters["collocationsNoRelations"]))
         print()
-        print('Слов без отношений: ' + str(counters['noRelation']) +
-              ' (' + str(counters['wordPresented']) + ' слов представлены в тезаурусе)')
-        print('Количество связей:')
-        for relation, count in counters['relations'].items():
-            print(relation + ' — ' + str(count))
+        print(
+            "Слов без отношений: "
+            + str(counters["noRelation"])
+            + " ("
+            + str(counters["wordPresented"])
+            + " слов представлены в тезаурусе)"
+        )
+        print("Количество связей:")
+        for relation, count in counters["relations"].items():
+            print(relation + " — " + str(count))
 
-    print('Done')
+    print("Done")
 
 
 if __name__ == "__main__":

@@ -526,8 +526,7 @@ def main():
                 params = {"parent_id": row["id"], "name": "derived_from"}
                 for lexeme in set(lexemes):
                     cur2.execute(
-                        "EXECUTE search_sense(%(name)s, %(synset_name)s)",
-                        {"name": lexeme, "synset_name": row["synset_name"]},
+                        "EXECUTE search_sense(%(name)s, %(synset_name)s)", {"name": lexeme[0], "synset_name": lexeme[1]}
                     )
                     row_lexeme = cur2.fetchone()
                     if row_lexeme:

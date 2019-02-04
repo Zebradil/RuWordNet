@@ -220,7 +220,7 @@ def prepare_search_cognates(cursor):
         -- 4: synset_name
         -- Поиск слов-претендентов на общий корень. Поиск выполняется с учётом значений слов.
 
-        SELECT s.name, s.rel_name
+        SELECT s.name, s.rel_name, s.synset_name
         FROM (
             -- Проверка слов-синонимов
                SELECT

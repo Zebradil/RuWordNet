@@ -5,8 +5,7 @@
 
 import argparse
 
-from psycopg2 import connect, extras
-from psycopg2._psycopg import IntegrityError
+from psycopg2 import connect, extras, IntegrityError
 
 parser = argparse.ArgumentParser(description="Extract derivation relations from RuThes and RuWordNet.")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -215,35 +214,55 @@ with open("predefined_cognates.txt", "r") as f:
 
 def prepare_search_cognates(cursor):
     sql = r"""
+        -- 1: sense_id
+        -- 2: synset_id
+        -- 3: word
+        -- 4: synset_name
+        -- Поиск слов-претендентов на общий корень. Поиск выполняется с учётом значений слов.
+
         SELECT s.name, s.rel_name
         FROM (
+            -- Проверка слов-синонимов
                SELECT
                  name,
+                 $4 synset_name,
                  'synset' rel_name,
                  'RuWordNet' source
-               FROM senses
+               FROM senses se
                WHERE id != $1
-                     AND synset_id = $2
+                 AND synset_id = $2
+
                UNION
+
+            -- Проверка слов в связанных синсетах (только один шаг по иерархии вниз)
                SELECT
                  se.name,
+                 (SELECT name FROM synsets WHERE id = se.synset_id) synset_name,
                  sr.name,
                  'RuWordNet' source
                FROM senses se
                  INNER JOIN synset_relations sr
                    ON sr.child_id = se.synset_id
                WHERE sr.parent_id = $2
+
                UNION
+
+            -- Проверка текстовых входов из связанных концептов РуТез (только один шаг по иерархии вниз)
                SELECT
                  t2.name,
+                 (SELECT name FROM concepts WHERE id = s2.concept_id) synset_name,
                  r.name,
                  'RuThes' source
                FROM text_entry t1
                  INNER JOIN synonyms s1 ON s1.entry_id = t1.id
+                 INNER JOIN concepts c ON c.id = s1.concept_id
                  INNER JOIN relations r ON r.from_id = s1.concept_id
                  INNER JOIN synonyms s2 ON s2.concept_id = r.to_id
                  INNER JOIN text_entry t2 ON t2.id = s2.entry_id
                WHERE t1.name = $3
+                 -- Отсечение многозначных текстовых входов
+                 -- Поиск происходит по конкретному значению, которое определяется через synsets.id/concept.id
+                 AND c.name = $4
              ) s
         WHERE substr(s.name, 1, 4) = substr($3, 1, 4)
           AND array_length(regexp_split_to_array(s.name, '\s+'), 1) = 1"""
@@ -253,7 +272,15 @@ def prepare_search_cognates(cursor):
 
 def prepare_search_cognates_transitionally(cursor):
     sql = r"""
+        -- 1: word
+        -- 2: name (relation name to start with)
+        -- 3: tail_names (relation names to propagate with)
+        -- 4: synset_name
+        -- Рекурсивный поиск слов-претендентов на общий корень. Поиск выполняется с учётом значений слов.
+
         WITH RECURSIVE tree (id, name, id_path, name_path, parent_relation_name) AS (
+
+        -- Поиск начинается от заданного значения (synset_name)
           SELECT
             id,
             name,
@@ -261,14 +288,12 @@ def prepare_search_cognates_transitionally(cursor):
             ARRAY[name] name_path,
             $2 parent_relation_name
           FROM concepts
-          WHERE id IN(
-            SELECT concept_id
-            FROM synonyms s
-              INNER JOIN text_entry t
-                ON t.id = s.entry_id
-            WHERE t.name = $1
-          )
+          WHERE name = $4
+
           UNION ALL
+
+        -- Спускаться по иерархии понятий можно на неограниченную по связям определённого типа (name)
+        -- и далее на один шаг по связи из дополнительного списка (tail_names)
           SELECT
             c.id,
             c.name,
@@ -283,7 +308,12 @@ def prepare_search_cognates_transitionally(cursor):
           WHERE r.name = ANY($3) AND tree.parent_relation_name = $2
         )
 
-        SELECT t.name, tree.name_path, tree.parent_relation_name
+        -- Далее поиск выполняется по текстовым входам понятий из под-дерева, найденного в рекурсивной части
+        SELECT
+          t.name,
+          tree.name synset_name,
+          tree.name_path,
+          tree.parent_relation_name
         FROM tree
           INNER JOIN synonyms s
             ON s.concept_id = tree.id
@@ -299,13 +329,14 @@ def prepare_search_cognates_transitionally(cursor):
 def prepare_search_sense(cursor):
     sql = """
         SELECT
-          id,
-          name,
-          synset_id
-        FROM senses
-        WHERE name = $1
-        ORDER BY meaning
-        LIMIT 1"""
+          se.id,
+          se.name,
+          se.synset_id
+        FROM senses se
+          INNER JOIN synsets sy
+            ON sy.id = se.synset_id
+        WHERE se.name = $1
+          AND sy.name = $2"""
 
     cursor.execute("PREPARE search_sense AS " + sql)
 
@@ -366,9 +397,9 @@ def is_cognates(word1, word2):
     for sub1 in words1:
         for sub2 in words2:
             if check_substrings(sub1, sub2):
-                print("is cognates: {} {}".format(word1, word2))
+                print("are cognates: {} {}".format(word1, word2))
                 return True
-    print("isn't cognates: {} {}".format(word1, word2))
+    print("aren't cognates: {} {}".format(word1, word2))
     return False
 
 
@@ -376,7 +407,7 @@ def check_substrings(word1, word2):
     match_len = min(len(word1), len(word2), 3)
     print("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
     if word1[:match_len] == word2[:match_len]:
-        print("beginnigs are equal")
+        print("beginnings are equal")
         return True
     for root in get_roots_group(word1):
         if word2.find(root) == 0:
@@ -424,28 +455,36 @@ def main():
         print("search collocations", flush=True)
         sql = r"""
           SELECT
-            id,
-            name,
-            synset_id
-          FROM senses
-          WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) = 1"""
+            se.id,
+            se.name,
+            se.synset_id,
+            sy.name synset_name
+          FROM senses se
+            INNER JOIN synsets sy
+              ON sy.id = se.synset_id
+          WHERE array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1"""
         cur.execute(sql)
 
         print("start looping", flush=True)
         for row in cur:
             print(flush=True)
-            print(row["name"], flush=True)
+            print("{} ({})".format(row["name"], row["synset_name"]), flush=True)
 
             if not test:
                 lexemes = []
 
-            params = {"sense_id": row["id"], "synset_id": row["synset_id"], "word": row["name"]}
-            cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s)", params)
+            params = {
+                "sense_id": row["id"],
+                "synset_id": row["synset_id"],
+                "word": row["name"],
+                "synset_name": row["synset_name"],
+            }
+            cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
             for cognate in cur2.fetchall():
                 if is_cognates(row["name"], cognate["name"]):
                     print(cognate["name"] + ": " + cognate["rel_name"])
                     if not test:
-                        lexemes.append(cognate["name"])
+                        lexemes.append((cognate["name"], cognate["synset_name"]))
 
             for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
                 if name == "ВЫШЕ":
@@ -455,10 +494,15 @@ def main():
                 else:
                     tail_names = [""]
 
-                params = {"word": row["name"], "name": name, "tail_names": [name] + tail_names}
+                params = {
+                    "word": row["name"],
+                    "name": name,
+                    "tail_names": [name] + tail_names,
+                    "synset_name": row["synset_name"],
+                }
                 cur2.execute(
                     """EXECUTE search_cognates_transitionally(
-                        %(word)s, %(name)s, %(tail_names)s)""",
+                        %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
                     params,
                 )
                 for senses_chain in cur2.fetchall():
@@ -476,12 +520,15 @@ def main():
                         )
                         print(chain)
                         if not test:
-                            lexemes.append(senses_chain["name"])
+                            lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
 
             if not test and lexemes:
                 params = {"parent_id": row["id"], "name": "derived_from"}
                 for lexeme in set(lexemes):
-                    cur2.execute("EXECUTE search_sense(%(name)s)", {"name": lexeme})
+                    cur2.execute(
+                        "EXECUTE search_sense(%(name)s, %(synset_name)s)",
+                        {"name": lexeme, "synset_name": row["synset_name"]},
+                    )
                     row_lexeme = cur2.fetchone()
                     if row_lexeme:
                         try:

@@ -307,7 +307,7 @@ def prepare_transitional_relation_query(cursor):
           WHERE r.name = ANY($3) AND tree.parent_relation_name = $2
         )
 
-        SELECT *
+        SELECT tree.*
         FROM tree
           INNER JOIN synonyms s
             ON s.concept_id = tree.id
@@ -536,6 +536,7 @@ def search_in_ruthes_transitionally(
     cur: extras.DictCursorBase, word: str, synset_name: str
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     chain = None
+    relation_name = "ВЫВОД"
     for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
         if name == "ВЫШЕ":
             tail_names = ["АСЦ", "ЧАСТЬ"]
@@ -562,7 +563,11 @@ def search_in_ruthes_transitionally(
                 + ")"
             )
 
-    return (senses_chain["name"], "ВЫВОД", chain) if senses_chain is not None else (None, None, None)
+    return (
+        (senses_chain["name"], relation_name, f"{relation_name} {chain}")
+        if senses_chain is not None
+        else (None, None, None)
+    )
 
 
 if __name__ == "__main__":

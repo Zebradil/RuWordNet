@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict
+from typing import Optional, Tuple
 
-from psycopg2 import connect, extras, IntegrityError
+from psycopg2 import IntegrityError, connect, extras
 
 parser = argparse.ArgumentParser(description="Extract collocation composition information from RuThes and RuWordNet.")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -171,30 +173,44 @@ conn.autocommit = True
 def prepare_search_sense_query(cursor):
     sql = """
         SELECT
-          id,
-          name,
-          synset_id
-        FROM senses
-        WHERE lemma = $1
-        ORDER BY meaning
-        LIMIT 1"""
+          se.id,
+          se.name,
+          se.synset_id
+        FROM senses se
+          INNER JOIN synsets sy
+            ON sy.id = se.synset_id
+        WHERE se.name = $1
+          AND sy.name = $2"""
 
     cursor.execute("PREPARE search_sense AS " + sql)
 
 
 def prepare_rwn_word_relation_query(cursor):
     sql = """
-      SELECT sr.name
+      -- 1: synset_id (of the current collocation)
+      -- 2: word (particular word in the collocation)
+      -- Searching for collocations in rwn relations neighborhood
+
+      -- Search for a sense with the same lemma as input word
+      -- through a one step down relation
+      SELECT
+        sr.name,
+        (SELECT name FROM synsets WHERE id = se.synset_id) synset_name
       FROM senses se
         INNER JOIN synset_relations sr
           ON sr.child_id = se.synset_id
       WHERE sr.parent_id = $1
-            AND se.lemma = $2
+        AND se.lemma = $2
+
       UNION ALL
-      SELECT 'synset'
+
+      -- Search in the same synset
+      SELECT
+        'synset',
+        (SELECT name FROM synsets WHERE id = synset_id) synset_name
       FROM senses
       WHERE lemma = $2
-            AND synset_id = $1
+        AND synset_id = $1
       LIMIT 1"""
     cursor.execute("PREPARE select_rwn_word_relation AS " + sql)
 
@@ -233,44 +249,56 @@ def prepare_rwn_relation_query(cursor):
 
 def prepare_ruthes_relation_query(cursor):
     sql = """
+      -- 1: word (particular word in the current collocation)
+      -- 2: collocation (the collocation)
+      -- 3: synset_name (synset_name of the collocation)
+      -- Search for a source word in RuThes relations neighborhood one step down
+
       SELECT
         r.name,
-        r.asp
+        r.asp,
+        c.name as synset_name
       FROM text_entry t
         INNER JOIN synonyms s
           ON s.entry_id = t.id
+        INNER JOIN concepts c
+          ON c.id = s.concept_id
         INNER JOIN relations r
           ON r.to_id = s.concept_id
-        INNER JOIN concepts c
-          ON c.id = r.from_id
+        INNER JOIN concepts c2
+          ON c2.id = r.from_id
         INNER JOIN synonyms s2
-          ON s2.concept_id = c.id
+          ON s2.concept_id = c2.id
         INNER JOIN text_entry t2
           ON t2.id = s2.entry_id
       WHERE t.lemma = $1
-            AND t2.lemma = $2
+        AND t2.lemma = $2
+        AND c2.name = $3
       LIMIT 1"""
     cursor.execute("PREPARE select_ruthes_relation AS " + sql)
 
 
 def prepare_transitional_relation_query(cursor):
     sql = """
+      -- 1: word (particular word in the current collocation)
+      -- 2: name (relation name to start and propagate with)
+      -- 3: tail_names (relation names to end with)
+      -- 4: synset_name (name of the corresponding to the current collocation synset)
+      -- Search a source word recursively through RuThes relations.
+
         WITH RECURSIVE tree (id, name, id_path, name_path, parent_relation_name) AS (
+
           SELECT
             id,
             name,
             ARRAY[id] id_path,
             ARRAY[name] name_path,
-            $3 parent_relation_name
+            $2 parent_relation_name
           FROM concepts
-            WHERE id IN(
-              SELECT s.concept_id
-              FROM synonyms s
-                INNER JOIN text_entry t
-                  ON t.id = s.entry_id
-              WHERE t.lemma = $2
-            )
+            WHERE name = $4
+
           UNION ALL
+
           SELECT
             c.id,
             c.name,
@@ -282,7 +310,7 @@ def prepare_transitional_relation_query(cursor):
               ON r.from_id = tree.id
             INNER JOIN concepts c
               ON c.id = r.to_id
-          WHERE r.name = ANY($4) AND tree.parent_relation_name = $3
+          WHERE r.name = ANY($3) AND tree.parent_relation_name = $2
         )
 
         SELECT *
@@ -345,11 +373,14 @@ def main():
         print("search collocations", flush=True)
         sql = r"""
           SELECT
-            id,
-            name,
-            lemma,
-            synset_id
-          FROM senses
+            se.id,
+            se.name,
+            se.lemma,
+            se.synset_id,
+            sy.name synset_name
+          FROM senses se
+            INNER JOIN synsets sy
+              ON sy.id = se.synset_id
           WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1"""
         cur.execute(sql)
 
@@ -359,12 +390,20 @@ def main():
             "collocationsAllRelations": 0,
             "noRelation": 0,
             "wordPresented": 0,
-            "relations": {},
+            "relations": defaultdict(int),
         }
+
+        # Approximate algorithm:
+        # 1. Find multiword sense
+        # 2. For each word not in the blacklist search one source word:
+        #    1. in RWN relations (one step up + in the same synset)
+        #    2. in RuThes relations
+        #    3. in RuThes relations transitionally
+
         print("start looping", flush=True)
         for row in cur:
             print(flush=True)
-            print(row["name"], ":", flush=True)
+            print("{} ({}):".format(row["name"], row["synset_name"]), flush=True)
             counters["collocations"] += 1
 
             words_with_relations = 0
@@ -376,86 +415,52 @@ def main():
                 if word in blacklist:
                     continue
                 checked_words += 1
-                string = word + " - "
-                params = {"synset_id": row["synset_id"], "word": word}
-                cur2.execute("EXECUTE select_rwn_word_relation(%(synset_id)s, %(word)s)", params)
-                rwn_relation = cur2.fetchone()
+                synset_name = None
+                relation_name = None
+                result = "нет"
 
-                if rwn_relation is None:
-                    params = {"collocation": row["lemma"], "word": word}
-                    cur2.execute("EXECUTE select_ruthes_relation(%(word)s, %(collocation)s)", params)
-                    ruthes_relation = cur2.fetchone()
-                    if ruthes_relation is None:
-                        chain = None
-                        for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
-                            if name == "ВЫШЕ":
-                                tail_names = ["АСЦ", "ЧАСТЬ"]
-                            elif name == "ЧАСТЬ":
-                                tail_names = ["АСЦ"]
-                            else:
-                                tail_names = [""]
+                cur2.execute("EXECUTE check_sense_existence(%(word)s)", {"word": word})
+                res = cur2.fetchone()
+                sense_count = int(res["sense"])
+                entries_count = int(res["entry"])
 
-                            params = {
-                                "word": word,
-                                "collocation": row["lemma"],
-                                "name": name,
-                                "tail_names": [name] + tail_names,
-                            }
-                            cur2.execute(
-                                """EXECUTE select_transited_relation(
-                                    %(word)s, %(collocation)s, %(name)s, %(tail_names)s)""",
-                                params,
-                            )
-                            senses_chain = cur2.fetchone()
-                            if senses_chain is not None:
-                                chain = (
-                                    "("
-                                    + name
-                                    + ") "
-                                    + " → ".join(senses_chain["name_path"])
-                                    + " ("
-                                    + senses_chain["parent_relation_name"]
-                                    + ")"
-                                )
+                if sense_count or entries_count:
+                    synset_name, relation_name, result = search_everywhere(
+                        cur2,
+                        word,
+                        row["synset_id"],
+                        row["synset_name"],
+                        row["lemma"],
+                        bool(sense_count),
+                        bool(entries_count),
+                    )
 
-                        if chain is not None:
-                            n = "ВЫВОД"
-                            string += chain
-                        else:
-                            n = None
-                            string += "нет"
-                            counters["noRelation"] += 1
-                            cur2.execute("EXECUTE check_sense_existence(%(word)s)", {"word": word})
-                            sense_entry = cur2.fetchone()
-                            if sense_entry["sense"] > 0 or sense_entry["entry"] > 0:
-                                counters["wordPresented"] += 1
-                                existence_strings = []
-                                if sense_entry["entry"] > 0:
-                                    existence_strings.append("есть в РуТез")
-                                if sense_entry["sense"] > 0:
-                                    existence_strings.append("есть в RWN")
-                                string += " (" + (", ".join(existence_strings)) + ")"
-                    else:
-                        n = ruthes_relation["name"]
-                        string += n
-                else:
-                    n = rwn_relation["name"]
-                    string += n
+                    if synset_name is None:
+                        result = "нет"
+                        counters["noRelation"] += 1
+                        counters["wordPresented"] += 1
+                        existence_strings = []
+                        if sense_count:
+                            existence_strings.append("есть в РуТез")
+                        if entries_count:
+                            existence_strings.append("есть в RWN")
+                        result += " (" + (", ".join(existence_strings)) + ")"
 
-                if n is not None:
+                if synset_name is not None:
                     detailed_words.append(word)
-                    if n not in counters["relations"]:
-                        counters["relations"][n] = 0
-                    counters["relations"][n] += 1
+                    counters["relations"][relation_name] += 1
                     words_with_relations += 1
 
-                print(string, flush=True)
+                print(f"{word} — {result}", flush=True)
+
             if checked_words == words_with_relations:
                 counters["collocationsAllRelations"] += 1
                 if not test:
                     params = {"parent_id": row["id"], "name": "composed_of"}
                     for word in detailed_words:
-                        cur2.execute("EXECUTE search_sense(%(name)s)", {"name": word})
+                        cur2.execute(
+                            "EXECUTE search_sense(%(word)s, %(synset_name)s)", {"word": word, "synset_name": synset_name}
+                        )
                         row_lexeme = cur2.fetchone()
                         if row_lexeme:
                             try:
@@ -491,6 +496,79 @@ def main():
             print(relation + " — " + str(count))
 
     print("Done")
+
+
+def search_everywhere(
+    cur: extras.DictCursorBase,
+    word: str,
+    c_synset_id: str,
+    c_synset_name: str,
+    c_lemma: str,
+    search_rwn: bool,
+    search_ruthes: bool,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    synset_name, relation_name = search_in_rwn(cur, word, c_synset_id)
+    if synset_name is not None:
+        return synset_name, relation_name, relation_name
+
+    synset_name, relation_name = search_in_ruthes(cur, word, c_lemma, c_synset_name)
+    if synset_name is not None:
+        return synset_name, relation_name, relation_name
+
+    synset_name, relation_name, extra = search_in_ruthes_transitionally(cur, word, c_synset_name)
+    if synset_name is not None:
+        return synset_name, relation_name, extra
+
+    return None, None, None
+
+
+def search_in_rwn(cur: extras.DictCursorBase, word: str, synset_id: str) -> Tuple[Optional[str], Optional[str]]:
+    params = {"synset_id": synset_id, "word": word}
+    cur.execute("EXECUTE select_rwn_word_relation(%(synset_id)s, %(word)s)", params)
+    res = cur.fetchone()
+    return (res["synset_name"], res["name"]) if res else (None, None)
+
+
+def search_in_ruthes(
+    cur: extras.DictCursorBase, word: str, collocation_lemma: str, synset_name: str
+) -> Tuple[Optional[str], Optional[str]]:
+    params = {"collocation": collocation_lemma, "word": word, "synset_name": synset_name}
+    cur.execute("EXECUTE select_ruthes_relation(%(word)s, %(collocation)s, %(synset_name)s)", params)
+    res = cur.fetchone()
+    return (res["synset_name"], res["name"]) if res else (None, None)
+
+
+def search_in_ruthes_transitionally(
+    cur: extras.DictCursorBase, word: str, synset_name: str
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    chain = None
+    for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
+        if name == "ВЫШЕ":
+            tail_names = ["АСЦ", "ЧАСТЬ"]
+        elif name == "ЧАСТЬ":
+            tail_names = ["АСЦ"]
+        else:
+            tail_names = [""]
+
+        params = {"word": word, "name": name, "tail_names": [name] + tail_names, "synset_name": synset_name}
+        cur.execute(
+            """EXECUTE select_transited_relation(
+                %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
+            params,
+        )
+        senses_chain = cur.fetchone()
+        if senses_chain is not None:
+            chain = (
+                "("
+                + name
+                + ") "
+                + " → ".join(senses_chain["name_path"])
+                + " ("
+                + senses_chain["parent_relation_name"]
+                + ")"
+            )
+
+    return (senses_chain["name"], "ВЫВОД", chain) if senses_chain is not None else (None, None, None)
 
 
 if __name__ == "__main__":

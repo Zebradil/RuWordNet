@@ -275,8 +275,8 @@ def prepare_ruthes_relation_query(cursor):
 def prepare_transitional_relation_query(cursor):
     sql = """
       -- 1: word (particular word in the current collocation)
-      -- 2: name (relation name to start and propagate with)
-      -- 3: tail_names (relation names to end with)
+      -- 2: name (relation name to start with)
+      -- 3: tail_names (relation names to propagate with)
       -- 4: synset_name (name of the corresponding to the current collocation synset)
       -- Search a source word recursively through RuThes relations.
 

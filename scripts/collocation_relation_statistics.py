@@ -318,7 +318,7 @@ def prepare_transitional_relation_query(cursor):
     cursor.execute("PREPARE select_transited_relation AS " + sql)
 
 
-def prepare_sense_existance_check_query(cursor):
+def prepare_sense_existence_check_query(cursor):
     sql = """
       SELECT
         (SELECT count(1) FROM senses WHERE lemma = $1) sense,
@@ -356,8 +356,8 @@ def main():
         prepare_ruthes_relation_query(cur2)
         print("prepare_transitional_relation_query", flush=True)
         prepare_transitional_relation_query(cur2)
-        print("prepare_sense_existance_check_query", flush=True)
-        prepare_sense_existance_check_query(cur2)
+        print("prepare_sense_existence_check_query", flush=True)
+        prepare_sense_existence_check_query(cur2)
 
         if not test:
             print("prepare_search_sense_query", flush=True)

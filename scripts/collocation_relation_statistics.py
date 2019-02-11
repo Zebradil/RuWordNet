@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 
-from psycopg2 import connect, extras
-from psycopg2._psycopg import IntegrityError
+from psycopg2 import connect, extras, IntegrityError
 
 parser = argparse.ArgumentParser(description="Extract collocation composition information from RuThes and RuWordNet.")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"

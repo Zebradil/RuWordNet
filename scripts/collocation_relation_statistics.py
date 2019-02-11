@@ -250,8 +250,7 @@ def prepare_rwn_relation_query(cursor):
 def prepare_ruthes_relation_query(cursor):
     sql = """
       -- 1: word (particular word in the current collocation)
-      -- 2: collocation (the collocation)
-      -- 3: synset_name (synset_name of the collocation)
+      -- 2: synset_name (synset_name of the collocation)
       -- Search for a source word in RuThes relations neighborhood one step down
 
       SELECT
@@ -267,13 +266,8 @@ def prepare_ruthes_relation_query(cursor):
           ON r.to_id = s.concept_id
         INNER JOIN concepts c2
           ON c2.id = r.from_id
-        INNER JOIN synonyms s2
-          ON s2.concept_id = c2.id
-        INNER JOIN text_entry t2
-          ON t2.id = s2.entry_id
       WHERE t.lemma = $1
-        AND t2.lemma = $2
-        AND c2.name = $3
+        AND c2.name = $2
       LIMIT 1"""
     cursor.execute("PREPARE select_ruthes_relation AS " + sql)
 
@@ -532,8 +526,8 @@ def search_in_rwn(cur: extras.DictCursorBase, word: str, synset_id: str) -> Tupl
 def search_in_ruthes(
     cur: extras.DictCursorBase, word: str, collocation_lemma: str, synset_name: str
 ) -> Tuple[Optional[str], Optional[str]]:
-    params = {"collocation": collocation_lemma, "word": word, "synset_name": synset_name}
-    cur.execute("EXECUTE select_ruthes_relation(%(word)s, %(collocation)s, %(synset_name)s)", params)
+    params = {"word": word, "synset_name": synset_name}
+    cur.execute("EXECUTE select_ruthes_relation(%(word)s, %(synset_name)s)", params)
     res = cur.fetchone()
     return (res["synset_name"], res["name"]) if res else (None, None)
 

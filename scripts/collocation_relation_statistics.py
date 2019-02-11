@@ -200,7 +200,7 @@ def prepare_rwn_word_relation_query(cursor):
 
 
 def prepare_rwn_relation_query(cursor):
-    sql = """
+    sql = r"""
         SELECT
           synset_id,
           array_agg(name) senses,
@@ -343,7 +343,7 @@ def main():
             insert_relation_sql = make_insert_query("sense_relations", ("parent_id", "child_id", "name"), cur)
 
         print("search collocations", flush=True)
-        sql = """
+        sql = r"""
           SELECT
             id,
             name,

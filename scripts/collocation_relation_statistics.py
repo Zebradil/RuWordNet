@@ -562,6 +562,7 @@ def search_in_ruthes_transitionally(
                 + senses_chain["parent_relation_name"]
                 + ")"
             )
+            break
 
     return (
         (senses_chain["name"], relation_name, f"{relation_name} {chain}")

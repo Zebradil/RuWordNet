@@ -441,7 +441,7 @@ def main():
                         result += " (" + (", ".join(existence_strings)) + ")"
 
                 if synset_name is not None:
-                    detailed_words.append(word)
+                    detailed_words.append((word, synset_name))
                     counters["relations"][relation_name] += 1
                     words_with_relations += 1
 
@@ -451,7 +451,7 @@ def main():
                 counters["collocationsAllRelations"] += 1
                 if not test:
                     params = {"parent_id": row["id"], "name": "composed_of"}
-                    for word in detailed_words:
+                    for word, synset_name in detailed_words:
                         cur2.execute(
                             "EXECUTE search_sense(%(word)s, %(synset_name)s)", {"word": word, "synset_name": synset_name}
                         )

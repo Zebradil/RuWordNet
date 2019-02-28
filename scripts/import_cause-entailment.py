@@ -91,7 +91,7 @@ FROM (
     ON s2.syid1 = s1.syid2
        AND s2.syid2 = s1.syid1"""
 
-    re_synset = re.compile("^.:\s+(.*)$")
+    re_synset = re.compile(r"^.:\s+(.*)$")
 
     for line_a in file:
         line_b = file.readline()

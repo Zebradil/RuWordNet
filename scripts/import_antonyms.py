@@ -4,7 +4,7 @@ import argparse
 import csv
 import os
 
-from psycopg2 import connect
+from psycopg2 import connect, IntegrityError
 
 parser = argparse.ArgumentParser(description="Import antonymy relations to RuThes database.")
 parser.add_argument("-s", "--source-file", type=str, help="Source csv file")
@@ -40,7 +40,7 @@ with open(filename) as csvfile, conn.cursor() as cur:
     )
     if reversible:
         prepare += ", ($2, $1, '" + reverse_relation_name + "')"
-    cur.execute(prepare)
+    cur.execute(prepare + " ON CONFLICT DO NOTHING")
     reader = csv.reader(csvfile)
     for row in reader:
         if row[0] == "id":

@@ -29,7 +29,7 @@ if not os.path.isfile(filename):
     exit()
 
 conn = connect(ARGS.connection_string)
-with open(filename, encoding="cp1251") as file, conn.cursor() as cur:
+with open(filename) as file, conn.cursor() as cur:
     prepare = (
         "PREPARE insert_relations AS "
         "INSERT INTO relations (from_id, to_id, name) VALUES ($1, $2, '" + relation_name + "')"

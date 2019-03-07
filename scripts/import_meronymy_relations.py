@@ -44,7 +44,7 @@ if not os.path.isfile(filename):
     exit()
 
 conn = connect(ARGS.connection_string)
-with open(filename, encoding="cp1251") as file, conn.cursor() as cur:
+with open(filename) as file, conn.cursor() as cur:
     prepare = (
         "PREPARE update_relation AS "
         "UPDATE relations SET asp = $4 "

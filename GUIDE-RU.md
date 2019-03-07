@@ -100,6 +100,7 @@ optional arguments:
 - `scripts/import_antonyms.py` загружает отношения антонимии из указанного csv-файла.
   Предполагается, что файл имеет следующие колонки (они соответствуют полям таблицы `concepts`): `id`, `name`, `id`, `name`.
 - `scripts/import_class-instance_relations.py` загружает отношения экземпляр-класс из указанного csv-файла.
+- `scripts/import_meronymy_relations.py` загружает отношения часть-целое из указанного csv-файла.
   - filename = 'in/add_part.txt'
   - asp = 'add_part'
   - relation_name = 'ЦЕЛОЕ'
@@ -109,7 +110,6 @@ optional arguments:
   - filename = 'in/classical_meronymy_edited.txt'
   - asp = 'classical_meronymy'
   - relation_name = 'ЧАСТЬ'
-- `scripts/import_meronymy_relations.py` загружает отношения часть-целое из указанного csv-файла.
 
 Затем необходимо проверить консистентность добавленных данных.
 Для этого используйте sql-запросы из файла `scripts/sql/fixup_relations.sql`

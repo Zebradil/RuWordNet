@@ -60,23 +60,34 @@ def transform_ruthes_to_ruwordnet():
             t.main_word,
             t.pos_string,
             t.synt_type,
+
+            -- Все понятия, связанные с текущим текстовым входом (многозначный текстовый вход)
             array_remove(
                 array_agg(DISTINCT s2.concept_id),
                 NULL
             )      concept_ids,
+
+            -- Все текстовые входы, связанные с текущим понятием (синонимы)
             array_remove(
                 array_agg(DISTINCT s3.entry_id),
                 NULL
             )      entry_ids
+
+          -- Связка "текстовый вход - понятие"
           FROM synonyms s
             INNER JOIN text_entry t
               ON t.id = s.entry_id
-            INNER JOIN synonyms s2
-              ON s2.entry_id = t.id
-            INNER JOIN synonyms s3
-              ON s3.concept_id = s.concept_id
             INNER JOIN concepts c
               ON c.id = s.concept_id
+
+            -- Остальные связки от текущего текстового входа
+            INNER JOIN synonyms s2
+              ON s2.entry_id = t.id
+
+            -- Остальные связки от текущего понятия
+            INNER JOIN synonyms s3
+              ON s3.concept_id = s.concept_id
+
           GROUP BY t.id, c.id
           ORDER BY t.name NULLS LAST"""
         cur.execute(sql)

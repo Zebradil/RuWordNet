@@ -210,21 +210,3 @@ FROM relations r1
        AND r2.asp != r1.asp
 WHERE ARRAY [r1.name, r2.name] <@ ARRAY ['ЧАСТЬ', 'ЦЕЛОЕ'] OR ARRAY [r1.name, r2.name] <@ ARRAY ['КЛАСС', 'ЭКЗЕМПЛЯР'];
 
-
--- Импорт отношений domain из РуТез в RuWordNet
-INSERT INTO synset_relations (parent_id, name, child_id)
-  SELECT
-    s1.id    AS parent_id,
-    'domain' AS name,
-    s2.id    AS child_id
-  FROM relations r
-    JOIN concepts c1
-      ON c1.id = r.from_id
-    JOIN synsets s1
-      ON s1.name = c1.name
-    JOIN concepts c2
-      ON c2.id = r.to_id
-    JOIN synsets s2
-      ON s2.name = c2.name
-  WHERE r.name = 'ДОМЕН'
-    AND s2.part_of_speech = 'N';

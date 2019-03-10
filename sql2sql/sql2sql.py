@@ -122,7 +122,10 @@ def transform_ruthes_to_ruwordnet():
           INNER JOIN concepts c1
             ON c1.id = r.from_id
           INNER JOIN concepts c2
-            ON c2.id = r.to_id"""
+            ON c2.id = r.to_id
+          -- Связи с понятием-доменом особенные: они могут идти из различных
+          -- частей речи к существительным, поэтому будут добавлены отдельно
+          WHERE r.name != 'ДОМЕН'"""
         cur.execute(sql)
         # распределение отношений по понятиям
         for relation in cur:

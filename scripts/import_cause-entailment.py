@@ -119,6 +119,8 @@ FROM (
                 print("Insert", row)
             except:
                 print("Exists", row)
+        else:
+            print(f"Not found: [{senses_a}], [{senses_b}]")
         conn.commit()
 
 print("Done")

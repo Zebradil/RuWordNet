@@ -100,7 +100,7 @@ def transform_ruthes_to_ruwordnet():
             row["poses"] = row["pos_string"]
             # если текстовый вход многозначный — проставляем номер значения
             if len(row["concept_ids"]) > 1:
-                row["meaning"] = row["concept_ids"].index(cid) + 1
+                row["meaning"] = sorted(row["concept_ids"]).index(cid) + 1
             else:
                 row["meaning"] = 0
             # накопление понятий

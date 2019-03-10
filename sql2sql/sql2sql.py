@@ -187,7 +187,7 @@ def transform_ruthes_to_ruwordnet():
         insert_relation_sql = make_insert_query("synset_relations", ("parent_id", "child_id", "name"), cur)
         for cid, concept in concepts.items():
             i += 1
-            # Деривативные связи
+            # Частеречная синонимия
             for parent_pos, parent_uuid in concept["uuids"].items():
                 for child_pos, child_uuid in concept["uuids"].items():
                     if parent_pos != child_pos:

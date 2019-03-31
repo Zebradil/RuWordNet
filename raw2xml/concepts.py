@@ -6,7 +6,7 @@ import re
 
 from lxml import etree
 
-PKG_ROOT = os.path.split(__file__)[0]
+PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 parser = argparse.ArgumentParser(description="Generates RuThes concepts.xml file from txt data file.")
 parser.add_argument(
@@ -83,4 +83,4 @@ for elem in srt:
         domain.text = "SOC-POL"
 
 tree = etree.ElementTree(root)
-tree.write("out/concepts.xml", encoding="utf-8", pretty_print=True)
+tree.write(ARGS.destination_file, encoding="utf-8", pretty_print=True)

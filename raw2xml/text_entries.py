@@ -6,7 +6,7 @@ import re
 
 from lxml import etree
 
-PKG_ROOT = os.path.split(__file__)[0]
+PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 parser = argparse.ArgumentParser(description="Generates RuThes text_entry.xml file from txt data file.")
 parser.add_argument(

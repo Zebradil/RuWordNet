@@ -3,8 +3,8 @@
 from psycopg2 import connect
 import pprint
 
-revry_filename = "in/revry_filtered.txt"
-rubrics_filename = "in/rubrics_filtered.txt"
+revry_filename = "data/revry_filtered.txt"
+rubrics_filename = "data/rubrics_filtered.txt"
 
 dbconfig = {"database": "ruwordnet", "user": "ruwordnet", "password": "ruwordnet", "host": "127.0.0.1"}
 

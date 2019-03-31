@@ -16,23 +16,32 @@ WHERE (from_id, to_id, name) IN (
 -- ВЫШЕ-НИЖЕ
 -- ЧАСТЬ-ЦЕЛОЕ
 -- ЭКЗЕМПЛЯР-КЛАСС
+PREPARE add_reverse AS
 INSERT INTO relations (from_id, to_id, name, asp)
   (SELECT
      to_id,
      from_id,
-     :direct_relation_name,
+     $1,
      asp
    FROM relations r
-   WHERE name = :reverse_relation_name
+   WHERE name = $2
          AND NOT exists(
        SELECT 1
        FROM relations
        WHERE from_id = r.to_id
              AND to_id = r.from_id
-             AND name = :direct_relation_name)
+             AND name = $1)
   );
 
+EXECUTE add_reverse('ВЫШЕ', 'НИЖЕ');
+EXECUTE add_reverse('НИЖЕ', 'ВЫШЕ');
+EXECUTE add_reverse('ЧАСТЬ', 'ЦЕЛОЕ');
+EXECUTE add_reverse('ЦЕЛОЕ', 'ЧАСТЬ');
+EXECUTE add_reverse('ЭКЗЕМПЛЯР', 'КЛАСС');
+EXECUTE add_reverse('КЛАСС', 'ЭКЗЕМПЛЯР');
+
 -- Выявление различий среди значений поля asp для реверсивных отношений
+/*
 SELECT
   r1.*,
   r2.name,
@@ -47,6 +56,7 @@ FROM relations r1
 WHERE ARRAY [r1.name, r2.name] <@ ARRAY ['ЧАСТЬ', 'ЦЕЛОЕ']
       OR ARRAY [r1.name, r2.name] <@ ARRAY ['КЛАСС', 'ЭКЗЕМПЛЯР']
       OR ARRAY [r1.name, r2.name] <@ ARRAY ['ВЫШЕ', 'НИЖЕ'];
+*/
 
 -- Исправление различий
 -- (заполняются asp со значениями, отличными от ['add_part', 'classical_meronymy', 'process_steps'])

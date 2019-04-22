@@ -471,6 +471,10 @@ def main():
         for row in cur:
             queue.put(row)
 
+        queue.join()
+
+        # TODO shutdown workers?
+
     print("Done")
 
 
@@ -504,13 +508,12 @@ class Worker(Thread):
     def run(self) -> None:
         self.conn_up()
         while True:
-            try:
-                task = self.queue.get()
-                self.process(task)
-                self.queue.task_done()
-            except Exception as e:
-                time.sleep(1)
-        self.conn_down()
+            task = self.queue.get()
+            if task is None:
+                self.conn_down()
+                break
+            self.process(task)
+            self.queue.task_done()
 
     def process(self, row: Dict[str, str]) -> None:
         test = self.is_test

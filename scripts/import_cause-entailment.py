@@ -4,10 +4,9 @@ import argparse
 import os
 import re
 
-from psycopg2 import connect
-from psycopg2 import extras
+from psycopg2 import connect, extras
 
-parser = argparse.ArgumentParser(description="Import cause or entailment relations to RuThes database.")
+parser = argparse.ArgumentParser(description="Import cause or entailment relations to RuWordNet database.")
 parser.add_argument("-s", "--source-file", type=str, help="Source csv file")
 parser.add_argument("--name", type=str, help="Relation name", choices=["cause", "entailment"])
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"

@@ -461,7 +461,7 @@ def main():
         cur.execute(sql)
 
         queue = Queue(1000)
-        for i in range(multiprocessing.cpu_count() + 1):
+        for i in range(multiprocessing.cpu_count()):
             worker = Worker()
             worker.set(queue, ARGS.connection_string, ARGS.test)
             worker.daemon = True

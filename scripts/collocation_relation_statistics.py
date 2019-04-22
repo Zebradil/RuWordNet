@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import sys
 from collections import defaultdict
 from typing import Optional, Tuple
 
@@ -394,10 +395,10 @@ def main():
         #    2. in RuThes relations
         #    3. in RuThes relations transitionally
 
-        print("start looping", flush=True)
+        print("start looping")
         for row in cur:
-            print(flush=True)
-            print("{} ({}):".format(row["name"], row["synset_name"]), flush=True)
+            print(flush=True, file=sys.stderr)
+            print("{} ({}):".format(row["name"], row["synset_name"]), file=sys.stderr)
             counters["collocations"] += 1
 
             words_with_relations = 0
@@ -405,6 +406,7 @@ def main():
 
             words = row["lemma"].split()
             detailed_words = []
+            word_results = []
             for word in words:
                 if word in blacklist:
                     continue
@@ -445,7 +447,8 @@ def main():
                     counters["relations"][relation_name] += 1
                     words_with_relations += 1
 
-                print(f"{word} — {result}", flush=True)
+                print(f"{word} — {result}", file=sys.stderr)
+                word_results.append(f"{word} — {result}")
 
             if checked_words == words_with_relations:
                 counters["collocationsAllRelations"] += 1
@@ -465,13 +468,15 @@ def main():
 
             elif words_with_relations == 0:
                 counters["collocationsNoRelations"] += 1
-
-            if test:
                 print(flush=True)
-                params = {"synset_id": row["synset_id"]}
-                cur2.execute("EXECUTE select_rwn_relation(%(synset_id)s)", params)
-                for rel_row in cur2:
-                    print(rel_row["rel_name"] + ": " + ", ".join(rel_row["senses"]), flush=True)
+                print("{} ({}):".format(row["name"], row["synset_name"]))
+                print('\n'.join(word_results))
+
+                if test:
+                    params = {"synset_id": row["synset_id"]}
+                    cur2.execute("EXECUTE select_rwn_relation(%(synset_id)s)", params)
+                    for rel_row in cur2:
+                        print(" -- " + rel_row["rel_name"] + ": " + ", ".join(rel_row["senses"]))
 
         print(flush=True)
         print("Словосочетаний: " + str(counters["collocations"]))
@@ -489,7 +494,7 @@ def main():
         for relation, count in counters["relations"].items():
             print(relation + " — " + str(count))
 
-    print("Done")
+    print("Done", flush=True)
 
 
 def search_everywhere(

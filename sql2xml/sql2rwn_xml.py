@@ -6,7 +6,7 @@ import os
 from lxml import etree
 from psycopg2 import extras, connect
 
-PKG_ROOT = os.path.split(__file__)[0]
+PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 parser = argparse.ArgumentParser(description="Generate RuWordNet xml files")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"

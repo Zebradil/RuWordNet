@@ -112,15 +112,19 @@ FROM (
 
         dict_cur.execute(find_synset_sql, (senses_a, len(senses_a), senses_b, len(senses_b)))
 
-        for row in dict_cur:
+        rows = dict_cur.fetchall()
+        if not rows:
+            print(f"Not found: [{senses_a}], [{senses_b}]")
+        elif len(rows) > 1:
+            print(f"Multiple matches: {rows}, [{senses_a}], [{senses_b}]")
+        for row in rows:
             values = {"parent_id": row["a"], "child_id": row["b"]}
             try:
                 cur.execute("EXECUTE insert_relations (%(parent_id)s, %(child_id)s)", values)
-                print("Insert", row)
+                # print("Insert", row)
             except:
-                print("Exists", row)
-        else:
-            print(f"Not found: [{senses_a}], [{senses_b}]")
+                pass
+                # print("Exists", row)
         conn.commit()
 
 print("Done")

@@ -4,8 +4,17 @@
 # pylint: disable=C0111
 
 import argparse
+import multiprocessing
+import os
+import time
+from queue import Queue
+from threading import Thread
+from typing import Dict
 
-from psycopg2 import connect, extras, IntegrityError
+from psycopg2 import IntegrityError, connect, extras
+
+PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
+PREDEFINED_COGNATES_FILE = os.path.join(PKG_ROOT, "predefined_cognates.txt")
 
 parser = argparse.ArgumentParser(description="Extract derivation relations from RuThes and RuWordNet.")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -21,9 +30,6 @@ parser.add_argument(
 )
 
 ARGS = parser.parse_args()
-
-conn = connect(ARGS.connection_string)
-conn.autocommit = True
 
 prefixes = [
     "АНТИ",
@@ -201,7 +207,7 @@ prefix_exceptions = (
 )
 
 predefined_cognates = {}
-with open("predefined_cognates.txt", "r") as f:
+with open(PREDEFINED_COGNATES_FILE, "r") as f:
     for line in f:
         word1, word2 = line.strip().split(" ")
         if word1 not in predefined_cognates:
@@ -384,34 +390,34 @@ def cache_result(func):
 
 @cache_result
 def is_cognates(word1, word2):
-    print("checking words: {} {}".format(word1, word2))
+    # print("checking words: {} {}".format(word1, word2))
     if word1 == word2:
-        print("same word")
+        # print("same word")
         return False
     if word1 in predefined_cognates:
         if word2 in predefined_cognates[word1]:
-            print("from predefined list")
+            # print("from predefined list")
             return True
     words1 = remove_prefixes(word1)
     words2 = remove_prefixes(word2)
     for sub1 in words1:
         for sub2 in words2:
             if check_substrings(sub1, sub2):
-                print("are cognates: {} {}".format(word1, word2))
+                # print("are cognates: {} {}".format(word1, word2))
                 return True
-    print("aren't cognates: {} {}".format(word1, word2))
+    # print("aren't cognates: {} {}".format(word1, word2))
     return False
 
 
 def check_substrings(word1, word2):
     match_len = min(len(word1), len(word2), 3)
-    print("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
+    # print("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
     if word1[:match_len] == word2[:match_len]:
-        print("beginnings are equal")
+        # print("beginnings are equal")
         return True
     for root in get_roots_group(word1):
         if word2.find(root) == 0:
-            print("root is found {}".format(root))
+            # print("root is found {}".format(root))
             return True
     return False
 
@@ -436,21 +442,10 @@ def remove_prefixes(word):
 
 
 def main():
-    test = ARGS.test
+    conn = connect(ARGS.connection_string)
+    conn.autocommit = True
 
-    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, conn.cursor(
-        cursor_factory=extras.RealDictCursor
-    ) as cur2:
-
-        print("prepare_search_cognates", flush=True)
-        prepare_search_cognates(cur2)
-        print("prepare_search_cognates_transitionally", flush=True)
-        prepare_search_cognates_transitionally(cur2)
-
-        if not test:
-            print("prepare_search_sense", flush=True)
-            prepare_search_sense(cur2)
-            insert_relation_sql = make_insert_query("sense_relations", ("parent_id", "child_id", "name"), cur)
+    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
 
         print("search collocations", flush=True)
         sql = r"""
@@ -465,79 +460,129 @@ def main():
           WHERE array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1"""
         cur.execute(sql)
 
+        queue = Queue(1000)
+        for i in range(multiprocessing.cpu_count() + 1):
+            worker = Worker()
+            worker.set(queue, ARGS.connection_string, ARGS.test)
+            worker.daemon = True
+            worker.start()
+
         print("start looping", flush=True)
         for row in cur:
-            print(flush=True)
-            print("{} ({})".format(row["name"], row["synset_name"]), flush=True)
-
-            if not test:
-                lexemes = []
-
-            params = {
-                "sense_id": row["id"],
-                "synset_id": row["synset_id"],
-                "word": row["name"],
-                "synset_name": row["synset_name"],
-            }
-            cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
-            for cognate in cur2.fetchall():
-                if is_cognates(row["name"], cognate["name"]):
-                    print(cognate["name"] + ": " + cognate["rel_name"])
-                    if not test:
-                        lexemes.append((cognate["name"], cognate["synset_name"]))
-
-            for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
-                if name == "ВЫШЕ":
-                    tail_names = ["АСЦ", "ЦЕЛОЕ"]
-                elif name == "ЦЕЛОЕ":
-                    tail_names = ["АСЦ"]
-                else:
-                    tail_names = [""]
-
-                params = {
-                    "word": row["name"],
-                    "name": name,
-                    "tail_names": [name] + tail_names,
-                    "synset_name": row["synset_name"],
-                }
-                cur2.execute(
-                    """EXECUTE search_cognates_transitionally(
-                        %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
-                    params,
-                )
-                for senses_chain in cur2.fetchall():
-                    if is_cognates(row["name"], senses_chain["name"]):
-                        chain = (
-                            senses_chain["name"]
-                            + ":"
-                            + " ("
-                            + name
-                            + ") "
-                            + " → ".join(senses_chain["name_path"])
-                            + " ("
-                            + senses_chain["parent_relation_name"]
-                            + ")"
-                        )
-                        print(chain)
-                        if not test:
-                            lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
-
-            if not test and lexemes:
-                params = {"parent_id": row["id"], "name": "derived_from"}
-                for lexeme in set(lexemes):
-                    cur2.execute(
-                        "EXECUTE search_sense(%(name)s, %(synset_name)s)", {"name": lexeme[0], "synset_name": lexeme[1]}
-                    )
-                    row_lexeme = cur2.fetchone()
-                    if row_lexeme:
-                        try:
-                            cur2.execute(insert_relation_sql, {"child_id": row_lexeme["id"], **params})
-                        except IntegrityError:
-                            # Если такое отношение уже есть, не останавливаем
-                            # выполнение
-                            pass
+            queue.put(row)
 
     print("Done")
+
+
+class Worker(Thread):
+    def set(self, queue: Queue, connection_string: str, is_test=False) -> None:
+        self.queue = queue
+        self.connection_string = connection_string
+        self.is_test = is_test
+
+    def conn_up(self) -> None:
+        self.conn = connect(self.connection_string)
+        self.conn.autocommit = True
+        self.cursor = self.conn.cursor(cursor_factory=extras.RealDictCursor)
+
+        print("prepare_search_cognates", flush=True)
+        prepare_search_cognates(self.cursor)
+        print("prepare_search_cognates_transitionally", flush=True)
+        prepare_search_cognates_transitionally(self.cursor)
+
+        if not self.is_test:
+            print("prepare_search_sense", flush=True)
+            prepare_search_sense(self.cursor)
+            self.insert_relation_sql = make_insert_query(
+                "sense_relations", ("parent_id", "child_id", "name"), self.cursor
+            )
+
+    def conn_down(self) -> None:
+        self.cursor.close()
+        self.conn.close()
+
+    def run(self) -> None:
+        self.conn_up()
+        while True:
+            try:
+                task = self.queue.get()
+                self.process(task)
+                self.queue.task_done()
+            except Exception as e:
+                time.sleep(1)
+        self.conn_down()
+
+    def process(self, row: Dict[str, str]) -> None:
+        test = self.is_test
+        cur2 = self.cursor
+        # print(flush=True)
+        # print("{} ({})".format(row["name"], row["synset_name"]), flush=True)
+
+        if not test:
+            lexemes = []
+
+        params = {
+            "sense_id": row["id"],
+            "synset_id": row["synset_id"],
+            "word": row["name"],
+            "synset_name": row["synset_name"],
+        }
+        cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
+        for cognate in cur2.fetchall():
+            if is_cognates(row["name"], cognate["name"]):
+                # print(cognate["name"] + ": " + cognate["rel_name"])
+                if not test:
+                    lexemes.append((cognate["name"], cognate["synset_name"]))
+
+        for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
+            if name == "ВЫШЕ":
+                tail_names = ["АСЦ", "ЦЕЛОЕ"]
+            elif name == "ЦЕЛОЕ":
+                tail_names = ["АСЦ"]
+            else:
+                tail_names = [""]
+
+            params = {
+                "word": row["name"],
+                "name": name,
+                "tail_names": [name] + tail_names,
+                "synset_name": row["synset_name"],
+            }
+            cur2.execute(
+                """EXECUTE search_cognates_transitionally(
+                    %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
+                params,
+            )
+            for senses_chain in cur2.fetchall():
+                if is_cognates(row["name"], senses_chain["name"]):
+                    # chain = (
+                    #     senses_chain["name"]
+                    #     + ":"
+                    #     + " ("
+                    #     + name
+                    #     + ") "
+                    #     + " → ".join(senses_chain["name_path"])
+                    #     + " ("
+                    #     + senses_chain["parent_relation_name"]
+                    #     + ")"
+                    # )
+                    # print(chain)
+                    if not test:
+                        lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
+
+        if not test and lexemes:
+            params = {"parent_id": row["id"], "name": "derived_from"}
+            for lexeme in set(lexemes):
+                cur2.execute(
+                    "EXECUTE search_sense(%(name)s, %(synset_name)s)", {"name": lexeme[0], "synset_name": lexeme[1]}
+                )
+                row_lexeme = cur2.fetchone()
+                if row_lexeme:
+                    try:
+                        cur2.execute(self.insert_relation_sql, {"child_id": row_lexeme["id"], **params})
+                    except IntegrityError:
+                        # Если такое отношение уже есть, не останавливаем выполнение
+                        pass
 
 
 if __name__ == "__main__":

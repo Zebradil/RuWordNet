@@ -210,3 +210,69 @@ FROM relations r1
        AND r2.asp != r1.asp
 WHERE ARRAY [r1.name, r2.name] <@ ARRAY ['ЧАСТЬ', 'ЦЕЛОЕ'] OR ARRAY [r1.name, r2.name] <@ ARRAY ['КЛАСС', 'ЭКЗЕМПЛЯР'];
 
+-- Выяснение различий среди отношений между различными версиями RWN
+SELECT
+    COALESCE(new.relation_name, old.relation_name) relation_name,
+    new.parent_pos  new_parent_pos,
+    new.parent_name new_parent_name,
+    new.child_pos   new_child_pos,
+    new.child_name  new_child_name,
+    old.parent_pos  old_parent_pos,
+    old.parent_name old_parent_name,
+    old.child_pos   old_child_pos,
+    old.child_name  old_child_name
+FROM (
+    SELECT
+        parent.name      parent_name,
+        parent.synt_type parent_pos,
+        sr.name          relation_name,
+        child.synt_type  child_pos,
+        child.name       child_name
+    FROM public.sense_relations sr
+      JOIN public.senses parent ON parent.id = sr.parent_id
+      JOIN public.senses child  ON child.id  = sr.child_id
+    UNION ALL
+    SELECT
+        parent.name           parent_name,
+        parent.part_of_speech parent_pos,
+        sr.name               relation_name,
+        child.part_of_speech  child_pos,
+        child.name            child_name
+    FROM public.synset_relations sr
+      JOIN public.synsets parent ON parent.id = sr.parent_id
+      JOIN public.synsets child  ON child.id  = sr.child_id
+) new
+FULL OUTER JOIN (
+    SELECT
+        parent.name      parent_name,
+        parent.synt_type parent_pos,
+        sr.name          relation_name,
+        child.synt_type  child_pos,
+        child.name       child_name
+    FROM published.sense_relations sr
+      JOIN published.senses parent ON parent.id = sr.parent_id
+      JOIN published.senses child  ON child.id  = sr.child_id
+    UNION ALL
+    SELECT
+        parent.name           parent_name,
+        parent.part_of_speech parent_pos,
+        sr.name               relation_name,
+        child.part_of_speech  child_pos,
+        child.name            child_name
+    FROM published.synset_relations sr
+      JOIN published.synsets parent ON parent.id = sr.parent_id
+      JOIN published.synsets child  ON child.id  = sr.child_id
+) old
+   ON old.parent_name   = new.parent_name
+  AND old.child_name    = new.child_name
+  AND old.relation_name = new.relation_name
+WHERE new IS NULL OR old IS NULL
+ORDER BY relation_name,
+    new.parent_pos  ,
+    new.parent_name ,
+    new.child_pos   ,
+    new.child_name  ,
+    old.parent_pos  ,
+    old.parent_name ,
+    old.child_pos   ,
+    old.child_name  ;

@@ -1,3 +1,4 @@
+.mypy_cache
 .idea
 *.swp
 *.log
@@ -10,3 +11,9 @@ sql2xml/out/*
 raw2xml/data/*
 raw2xml/out/*
 !.keep
+*.txt
+*.tar.gz
+*.tgz
+/*.sql
+*.tsv
+data/*

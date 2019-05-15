@@ -8,9 +8,23 @@ import psycopg2
 PKG_ROOT = os.path.split(__file__)[0]
 
 parser = argparse.ArgumentParser(description="Run import RuThes from xml to database.")
-parser.add_argument("-s", "--xml-dir", type=str, help="Source xml root directory", default=os.path.join(PKG_ROOT, "xml"))
-parser.add_argument("-l", "--log-dir", type=str, help="Log files destination", default=os.path.join(PKG_ROOT, "log"))
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser.add_argument(
+    "-s",
+    "--xml-dir",
+    type=str,
+    help="Source xml root directory",
+    default=os.path.join(PKG_ROOT, "xml"),
+)
+parser.add_argument(
+    "-l",
+    "--log-dir",
+    type=str,
+    help="Log files destination",
+    default=os.path.join(PKG_ROOT, "log"),
+)
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -76,7 +90,10 @@ def import_data():
         filename="synonyms.xml",
         table="synonyms",
         fields=["concept_id", "entry_id"],
-        get_values=lambda item: {"concept_id": item.get("concept_id"), "entry_id": item.get("entry_id")},
+        get_values=lambda item: {
+            "concept_id": item.get("concept_id"),
+            "entry_id": item.get("entry_id"),
+        },
         get_items=lambda tree: tree.findall("entry_rel"),
     )
 
@@ -96,23 +113,34 @@ def insert_data(filename, table, fields, get_values, get_items):
     count = len(items)
     print("Found {0} items".format(count))
 
-    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
+    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(
+        placeholders=placeholders, table=table
+    )
     i = 0
 
     with CONN.cursor() as cur:
         sql = "PREPARE prepared_query_{table} AS ".format(
             table=table
-        ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(fields=fields_str, dollars=dollars, tbl=table)
+        ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(
+            fields=fields_str, dollars=dollars, tbl=table
+        )
 
         cur.execute(sql)
 
         file.write(sql + "\n\n")
 
         for item in items:
-            values = {k: val.strip() if isinstance(val, str) else val for k, val in get_values(item).items()}
+            values = {
+                k: val.strip() if isinstance(val, str) else val
+                for k, val in get_values(item).items()
+            }
             cur.execute(sql_str, values)
             i += 1
-            print("\rProgress: {0}% ({1})".format(round(i / count * 100), i), end="", flush=True)
+            print(
+                "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
+                end="",
+                flush=True,
+            )
             file.write(str(values) + "\n")
         print()
     CONN.commit()
@@ -120,7 +148,12 @@ def insert_data(filename, table, fields, get_values, get_items):
 
 
 def check_xml_files():
-    source_filenames = ["concepts.xml", "relations.xml", "text_entry.xml", "synonyms.xml"]
+    source_filenames = [
+        "concepts.xml",
+        "relations.xml",
+        "text_entry.xml",
+        "synonyms.xml",
+    ]
     for filename in source_filenames:
         with open(os.path.join(ARGS.xml_dir, filename)) as f:
             pass

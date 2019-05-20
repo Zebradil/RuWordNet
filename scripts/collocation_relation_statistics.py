@@ -391,9 +391,10 @@ def main():
         # Approximate algorithm:
         # 1. Find multiword sense
         # 2. For each word not in the blacklist search one source word:
-        #    1. in RWN relations (one step up + in the same synset)
-        #    2. in RuThes relations
-        #    3. in RuThes relations transitionally
+        #    1. among all words with single meaning
+        #    2. in RWN relations (one step up + in the same synset)
+        #    3. in RuThes relations
+        #    4. in RuThes relations transitionally
 
         print("start looping")
         for row in cur:
@@ -422,13 +423,7 @@ def main():
 
                 if sense_count or entries_count:
                     synset_name, relation_name, result = search_everywhere(
-                        cur2,
-                        word,
-                        row["synset_id"],
-                        row["synset_name"],
-                        row["lemma"],
-                        bool(sense_count),
-                        bool(entries_count),
+                        cur2, word, row["synset_id"], row["synset_name"], row["lemma"]
                     )
 
                     if synset_name is None:
@@ -456,7 +451,8 @@ def main():
                     params = {"parent_id": row["id"], "name": "composed_of"}
                     for word, synset_name in detailed_words:
                         cur2.execute(
-                            "EXECUTE search_sense(%(word)s, %(synset_name)s)", {"word": word, "synset_name": synset_name}
+                            "EXECUTE search_sense(%(word)s, %(synset_name)s)",
+                            {"word": word, "synset_name": synset_name},
                         )
                         row_lexeme = cur2.fetchone()
                         if row_lexeme:
@@ -470,7 +466,7 @@ def main():
                 counters["collocationsNoRelations"] += 1
                 print(flush=True)
                 print("{} ({}):".format(row["name"], row["synset_name"]))
-                print('\n'.join(word_results))
+                print("\n".join(word_results))
 
                 if test:
                     params = {"synset_id": row["synset_id"]}
@@ -498,13 +494,7 @@ def main():
 
 
 def search_everywhere(
-    cur: extras.DictCursorBase,
-    word: str,
-    c_synset_id: str,
-    c_synset_name: str,
-    c_lemma: str,
-    search_rwn: bool,
-    search_ruthes: bool,
+    cur: extras.DictCursorBase, word: str, c_synset_id: str, c_synset_name: str, c_lemma: str
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     synset_name, relation_name = search_in_rwn(cur, word, c_synset_id)
     if synset_name is not None:
@@ -522,6 +512,20 @@ def search_everywhere(
 
 
 def search_in_rwn(cur: extras.DictCursorBase, word: str, synset_id: str) -> Tuple[Optional[str], Optional[str]]:
+    params = {"word": word}
+    cur.execute(
+        """
+        SELECT sy.name
+        FROM senses se
+        JOIN synsets sy ON sy.id = se.synset_id
+        WHERE se.lemma = %(word)s
+        """,
+        params,
+    )
+    res = cur.fetchall()
+    if len(res) == 1:
+        return (res[0]["name"], "single")
+
     params = {"synset_id": synset_id, "word": word}
     cur.execute("EXECUTE select_rwn_word_relation(%(synset_id)s, %(word)s)", params)
     res = cur.fetchone()
@@ -531,6 +535,23 @@ def search_in_rwn(cur: extras.DictCursorBase, word: str, synset_id: str) -> Tupl
 def search_in_ruthes(
     cur: extras.DictCursorBase, word: str, collocation_lemma: str, synset_name: str
 ) -> Tuple[Optional[str], Optional[str]]:
+    params = {"word": word}
+    cur.execute(
+        """
+        SELECT c.name
+        FROM text_entry t
+          INNER JOIN synonyms s
+            ON s.entry_id = t.id
+          INNER JOIN concepts c
+            ON c.id = s.concept_id
+        WHERE t.lemma = %(word)s
+        """,
+        params,
+    )
+    res = cur.fetchall()
+    if len(res) == 1:
+        return (res[0]["name"], "single")
+
     params = {"word": word, "synset_name": synset_name}
     cur.execute("EXECUTE select_ruthes_relation(%(word)s, %(synset_name)s)", params)
     res = cur.fetchone()

@@ -376,7 +376,8 @@ def main():
           FROM senses se
             INNER JOIN synsets sy
               ON sy.id = se.synset_id
-          WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1"""
+          WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1
+          ORDER BY se.name"""
         cur.execute(sql)
 
         counters = {

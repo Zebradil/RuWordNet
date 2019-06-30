@@ -180,7 +180,7 @@ def prepare_search_sense_query(cursor):
         FROM senses se
           INNER JOIN synsets sy
             ON sy.id = se.synset_id
-        WHERE se.name = $1
+        WHERE se.lemma = $1
           AND sy.name = $2"""
 
     cursor.execute("PREPARE search_sense AS " + sql)

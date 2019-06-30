@@ -93,4 +93,7 @@ gen-composed-of:
 
 # UPDATE WEBSITE
 dump-db:
-	PGPASSWORD=$(DB_PASS) pg_dump -h $(DB_HOST) -U $(DB_USER) $(DB_NAME) -n public > rwn-$$(date +%F).sql
+	$(eval DATE := $(shell date +%F))
+	PGPASSWORD=$(DB_PASS) pg_dump -h $(DB_HOST) -U $(DB_USER) $(DB_NAME) -n public > rwn-$(DATE).sql
+	tar -czvf rwn-$(DATE).sql.tgz rwn-$(DATE).sql
+

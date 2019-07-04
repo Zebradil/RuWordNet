@@ -14,7 +14,7 @@ from typing import Dict
 
 from psycopg2 import IntegrityError, connect, extras
 
-logging.basicConfig(level="INFO")
+logging.basicConfig(level="INFO", format="%(name)-4s %(asctime)-15s %(message)s")
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 PREDEFINED_COGNATES_FILE = os.path.join(PKG_ROOT, "predefined_cognates.txt")
@@ -537,7 +537,7 @@ class Worker(Thread):
         cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
         for cognate in cur2.fetchall():
             if is_cognates(row["name"], cognate["name"]):
-                self.logger.info(cognate["name"] + ": " + cognate["rel_name"])
+                self.logger.info("    " + cognate["name"] + ": " + cognate["rel_name"])
                 if not test:
                     lexemes.append((cognate["name"], cognate["synset_name"]))
 
@@ -573,7 +573,7 @@ class Worker(Thread):
                         + senses_chain["parent_relation_name"]
                         + ")"
                     )
-                    self.logger.info(chain)
+                    self.logger.info("    " + chain)
                     if not test:
                         lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
 

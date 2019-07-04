@@ -4,6 +4,7 @@
 # pylint: disable=C0111
 
 import argparse
+import logging
 import multiprocessing
 import os
 import time
@@ -12,6 +13,8 @@ from threading import Thread
 from typing import Dict
 
 from psycopg2 import IntegrityError, connect, extras
+
+logging.basicConfig(level="INFO")
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 PREDEFINED_COGNATES_FILE = os.path.join(PKG_ROOT, "predefined_cognates.txt")
@@ -463,7 +466,7 @@ def main():
         queue = Queue(1000)
         for i in range(multiprocessing.cpu_count()):
             worker = Worker()
-            worker.set(queue, ARGS.connection_string, ARGS.test)
+            worker.set(queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test)
             worker.daemon = True
             worker.start()
 
@@ -479,9 +482,10 @@ def main():
 
 
 class Worker(Thread):
-    def set(self, queue: Queue, connection_string: str, is_test=False) -> None:
+    def set(self, queue: Queue, connection_string: str, logger: logging.Logger, is_test=False) -> None:
         self.queue = queue
         self.connection_string = connection_string
+        self.logger = logger
         self.is_test = is_test
 
     def conn_up(self) -> None:
@@ -489,13 +493,13 @@ class Worker(Thread):
         self.conn.autocommit = True
         self.cursor = self.conn.cursor(cursor_factory=extras.RealDictCursor)
 
-        print("prepare_search_cognates", flush=True)
+        self.logger.debug("prepare_search_cognates")
         prepare_search_cognates(self.cursor)
-        print("prepare_search_cognates_transitionally", flush=True)
+        self.logger.debug("prepare_search_cognates_transitionally")
         prepare_search_cognates_transitionally(self.cursor)
 
         if not self.is_test:
-            print("prepare_search_sense", flush=True)
+            self.logger.debug("prepare_search_sense")
             prepare_search_sense(self.cursor)
             self.insert_relation_sql = make_insert_query(
                 "sense_relations", ("parent_id", "child_id", "name"), self.cursor
@@ -519,7 +523,7 @@ class Worker(Thread):
         test = self.is_test
         cur2 = self.cursor
         # print(flush=True)
-        # print("{} ({})".format(row["name"], row["synset_name"]), flush=True)
+        self.logger.info("{} ({})".format(row["name"], row["synset_name"]))
 
         if not test:
             lexemes = []
@@ -533,7 +537,7 @@ class Worker(Thread):
         cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
         for cognate in cur2.fetchall():
             if is_cognates(row["name"], cognate["name"]):
-                # print(cognate["name"] + ": " + cognate["rel_name"])
+                self.logger.info(cognate["name"] + ": " + cognate["rel_name"])
                 if not test:
                     lexemes.append((cognate["name"], cognate["synset_name"]))
 
@@ -558,18 +562,18 @@ class Worker(Thread):
             )
             for senses_chain in cur2.fetchall():
                 if is_cognates(row["name"], senses_chain["name"]):
-                    # chain = (
-                    #     senses_chain["name"]
-                    #     + ":"
-                    #     + " ("
-                    #     + name
-                    #     + ") "
-                    #     + " → ".join(senses_chain["name_path"])
-                    #     + " ("
-                    #     + senses_chain["parent_relation_name"]
-                    #     + ")"
-                    # )
-                    # print(chain)
+                    chain = (
+                        senses_chain["name"]
+                        + ":"
+                        + " ("
+                        + name
+                        + ") "
+                        + " → ".join(senses_chain["name_path"])
+                        + " ("
+                        + senses_chain["parent_relation_name"]
+                        + ")"
+                    )
+                    self.logger.info(chain)
                     if not test:
                         lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
 

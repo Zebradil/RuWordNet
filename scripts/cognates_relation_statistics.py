@@ -7,14 +7,13 @@ import argparse
 import logging
 import multiprocessing
 import os
-import time
 from queue import Queue
 from threading import Thread
 from typing import Dict
 
 from psycopg2 import IntegrityError, connect, extras
 
-logging.basicConfig(level="INFO", format="%(name)-4s %(asctime)-15s %(message)s")
+logging.basicConfig(level="INFO", format="%(word)-31s %(name)-4s %(seq)-3s %(message)s")
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 PREDEFINED_COGNATES_FILE = os.path.join(PKG_ROOT, "predefined_cognates.txt")
@@ -520,10 +519,15 @@ class Worker(Thread):
             self.queue.task_done()
 
     def process(self, row: Dict[str, str]) -> None:
+        def e(word):
+            e.counter += 1
+            return {"word": word, "seq": e.counter}
+
+        e.counter = 0
         test = self.is_test
         cur2 = self.cursor
         # print(flush=True)
-        self.logger.info("{} ({})".format(row["name"], row["synset_name"]))
+        self.logger.info("{} ({})".format(row["name"], row["synset_name"]), extra=e(row["name"]))
 
         if not test:
             lexemes = []
@@ -537,7 +541,7 @@ class Worker(Thread):
         cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
         for cognate in cur2.fetchall():
             if is_cognates(row["name"], cognate["name"]):
-                self.logger.info("    " + cognate["name"] + ": " + cognate["rel_name"])
+                self.logger.info("    " + cognate["name"] + ": " + cognate["rel_name"], extra=e(row["name"]))
                 if not test:
                     lexemes.append((cognate["name"], cognate["synset_name"]))
 
@@ -573,7 +577,7 @@ class Worker(Thread):
                         + senses_chain["parent_relation_name"]
                         + ")"
                     )
-                    self.logger.info("    " + chain)
+                    self.logger.info("    " + chain, extra=e(row["name"]))
                     if not test:
                         lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
 

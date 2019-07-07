@@ -435,7 +435,7 @@ def get_roots_group(word):
 def remove_prefixes(word):
     for exception in prefix_exceptions:
         if word.find(exception) == 0:
-            return word
+            return [word]
     forms = []
     for prefix in prefixes:
         if word.startswith(prefix):

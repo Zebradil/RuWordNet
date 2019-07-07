@@ -462,8 +462,8 @@ def main():
           WHERE array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1"""
         cur.execute(sql)
 
-        queue = Queue(1000)
-        for i in range(multiprocessing.cpu_count()):
+        queue = Queue(-1)
+        for i in range(multiprocessing.cpu_count() - 1):
             worker = Worker()
             worker.set(queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test)
             worker.daemon = True

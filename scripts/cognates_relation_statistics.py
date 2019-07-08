@@ -438,7 +438,7 @@ def remove_prefixes(word):
             return [word]
     forms = []
     for prefix in prefixes:
-        if word.startswith(prefix):
+        if word.startswith(prefix) and len(word) - len(prefix) >= 2:
             forms.append(word.replace(prefix, "", 1))
     return forms if forms else [word]
 

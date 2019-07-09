@@ -438,8 +438,10 @@ def remove_prefixes(word):
             return [word]
     forms = []
     for prefix in prefixes:
-        if word.startswith(prefix) and len(word) - len(prefix) >= 2:
-            forms.append(word.replace(prefix, "", 1))
+        if word.startswith(prefix):
+            trimmed = word.replace(prefix, "", 1)
+            if len(trimmed) >= 3 and set(trimmed) & set("АОИЕЁЭЫУЮЯ"):
+                forms.append(trimmed)
     return forms if forms else [word]
 
 

@@ -7,11 +7,13 @@ import argparse
 import logging
 import multiprocessing
 import os
+import sys
 from queue import Queue
 from threading import Thread
 from typing import Dict, List
 
 from psycopg2 import IntegrityError, connect, extras
+from tqdm import tqdm
 
 logging.basicConfig(level="INFO", format="%(word)-31s %(name)-4s %(seq)-3s %(message)s")
 
@@ -469,15 +471,17 @@ def main():
           WHERE array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1"""
         cur.execute(sql)
 
-        queue = Queue(-1)
-        for i in range(multiprocessing.cpu_count() - 1):
+        workers_count = multiprocessing.cpu_count() - 1
+        queue = Queue(workers_count * 10)
+        for i in range(workers_count):
             worker = Worker()
             worker.set(queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test)
             worker.daemon = True
             worker.start()
 
         print("start looping", flush=True)
-        for row in cur:
+        rows = cur.fetchall()
+        for row in tqdm(rows, file=sys.stdout):
             queue.put(row)
 
         queue.join()

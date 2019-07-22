@@ -319,6 +319,86 @@ def prepare_transitional_relation_query(cursor):
     cursor.execute("PREPARE select_transited_relation AS " + sql)
 
 
+def prepare_bitransitional_relation_query(cursor):
+    sql = """
+      -- 1: word (particular word in the current collocation)
+      -- 2: name (relation name to start with)
+      -- 3: tail_names (relation names to propagate with)
+      -- 4: synset_name (name of the corresponding to the current collocation synset)
+      -- Search a source word recursively through RuThes relations.
+
+        WITH RECURSIVE collocation_tree (id, name, id_path, name_path, parent_relation_name) AS (
+          SELECT
+            id,
+            name,
+            ARRAY[id] id_path,
+            ARRAY[name] name_path,
+            $2 parent_relation_name
+          FROM concepts
+            WHERE name = $4
+
+          UNION ALL
+
+          SELECT
+            c.id,
+            c.name,
+            array_append(collocation_tree.id_path, c.id),
+            array_append(collocation_tree.name_path, c.name),
+            r.name parent_relation_name
+          FROM collocation_tree
+            INNER JOIN relations r
+              ON r.from_id = collocation_tree.id
+            INNER JOIN concepts c
+              ON c.id = r.to_id
+          WHERE r.name = ANY($3) AND collocation_tree.parent_relation_name = $2
+        ),
+
+        member_tree (id, name, id_path, name_path, parent_relation_name) AS (
+          SELECT
+            id,
+            name,
+            ARRAY[id] id_path,
+            ARRAY[name] name_path,
+            $2 parent_relation_name
+          FROM concepts
+            WHERE id IN(
+              SELECT s.concept_id
+              FROM synonyms s
+                JOIN text_entry t ON t.id = s.entry_id
+              WHERE t.lemma = $1
+            )
+
+          UNION ALL
+
+          SELECT
+            c.id,
+            c.name,
+            array_append(member_tree.id_path, c.id),
+            array_append(member_tree.name_path, c.name),
+            r.name parent_relation_name
+          FROM member_tree
+            INNER JOIN relations r
+              ON r.from_id = member_tree.id
+            INNER JOIN concepts c
+              ON c.id = r.to_id
+          WHERE r.name = ANY($3) AND member_tree.parent_relation_name = $2
+        )
+
+        SELECT --t.*,
+            t.name,
+            t.name_path,
+            t.parent_relation_name,
+            mt.name name1,
+            mt.name_path name_path1,
+            mt.parent_relation_name parent_relation_name1
+        FROM collocation_tree t
+          INNER JOIN member_tree mt
+            ON mt.id = t.id
+        ORDER BY array_length(t.id_path, 1), array_length(mt.id_path, 1)
+        LIMIT 10"""
+    cursor.execute("PREPARE select_bitransited_relation AS " + sql)
+
+
 def prepare_sense_existence_check_query(cursor):
     sql = """
       SELECT
@@ -357,6 +437,8 @@ def main():
         prepare_ruthes_relation_query(cur2)
         print("prepare_transitional_relation_query", flush=True)
         prepare_transitional_relation_query(cur2)
+        print("prepare_bitransitional_relation_query", flush=True)
+        prepare_bitransitional_relation_query(cur2)
         print("prepare_sense_existence_check_query", flush=True)
         prepare_sense_existence_check_query(cur2)
 
@@ -511,6 +593,10 @@ def search_everywhere(
     if synset_name is not None:
         return synset_name, relation_name, extra
 
+    synset_name, relation_name, extra = search_in_ruthes_bitransitionally(cur, word, c_synset_name)
+    # if synset_name is not None:
+    # return synset_name, relation_name, extra
+
     return None, None, None
 
 
@@ -598,6 +684,52 @@ def search_in_ruthes_transitionally(
         if senses_chain is not None
         else (None, None, None)
     )
+
+
+def search_in_ruthes_bitransitionally(
+    cur: extras.DictCursorBase, word: str, synset_name: str
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    chain = None
+    relation_name = "ВЫВОД"
+    for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
+        if name == "ВЫШЕ":
+            tail_names = ["АСЦ", "ЧАСТЬ"]
+        elif name == "ЧАСТЬ":
+            tail_names = ["АСЦ"]
+        else:
+            tail_names = [""]
+
+        params = {"word": word, "name": name, "tail_names": [name] + tail_names, "synset_name": synset_name}
+        cur.execute(
+            """EXECUTE select_bitransited_relation(
+                %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
+            params,
+        )
+        senses_chain = cur.fetchone()
+        if senses_chain is not None:
+            print_extraction(senses_chain)
+            chain = (
+                "("
+                + name
+                + ") "
+                + " → ".join(senses_chain["name_path"])
+                + " ("
+                + senses_chain["parent_relation_name"]
+                + ")"
+            )
+            break
+
+    return (
+        (senses_chain["name"], relation_name, f"{relation_name} {chain}")
+        if senses_chain is not None
+        else (None, None, None)
+    )
+
+
+def print_extraction(data):
+    print("\n      V\n".join([f"    {n}" for n in data["name_path"]]), file=sys.stderr)
+    print("      A", file=sys.stderr)
+    print("\n      A\n".join(reversed([f"    {n}" for n in data["name_path1"][:-1]])), file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -281,14 +281,14 @@ def prepare_transitional_relation_query(cursor):
       -- 4: synset_name (name of the corresponding to the current collocation synset)
       -- Search a source word recursively through RuThes relations.
 
-        WITH RECURSIVE tree (id, name, id_path, name_path, parent_relation_name) AS (
+        WITH RECURSIVE tree (id, name, id_path, name_path, relation_path) AS (
 
           SELECT
             id,
             name,
             ARRAY[id] id_path,
             ARRAY[name] name_path,
-            ARRAY[] relation_path
+            ARRAY[]::text[] relation_path
           FROM concepts
             WHERE name = $4
 

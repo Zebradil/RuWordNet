@@ -9,7 +9,7 @@ import multiprocessing
 import os
 from queue import Queue
 from threading import Thread
-from typing import Dict
+from typing import Dict, List
 
 from psycopg2 import IntegrityError, connect, extras
 

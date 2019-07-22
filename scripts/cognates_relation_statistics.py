@@ -397,34 +397,34 @@ def cache_result(func):
 
 @cache_result
 def is_cognates(word1, word2):
-    print("checking words: {} {}".format(word1, word2))
+    # print("checking words: {} {}".format(word1, word2))
     if word1 == word2:
-        print("same word")
+        # print("same word")
         return False
     if word1 in predefined_cognates:
         if word2 in predefined_cognates[word1]:
-            print("from predefined list")
+            # print("from predefined list")
             return True
     words1 = remove_prefixes(word1)
     words2 = remove_prefixes(word2)
     for sub1 in words1:
         for sub2 in words2:
             if check_substrings(sub1, sub2):
-                print("are cognates: {} {}".format(word1, word2))
+                # print("are cognates: {} {}".format(word1, word2))
                 return True
-    print("aren't cognates: {} {}".format(word1, word2))
+    # print("aren't cognates: {} {}".format(word1, word2))
     return False
 
 
 def check_substrings(word1, word2):
     match_len = min(len(word1), len(word2), 3)
-    print("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
+    # print("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
     if word1[:match_len] == word2[:match_len]:
-        print("beginnings are equal")
+        # print("beginnings are equal")
         return True
     for root in get_roots_group(word1):
         if word2.find(root) == 0:
-            print("root is found {}".format(root))
+            # print("root is found {}".format(root))
             return True
     return False
 

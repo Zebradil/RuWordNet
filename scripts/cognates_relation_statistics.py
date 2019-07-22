@@ -281,12 +281,12 @@ def prepare_search_cognates(cursor):
 def prepare_search_cognates_transitionally(cursor):
     sql = r"""
         -- 1: word
-        -- 2: name (relation name to start with)
+        -- 2: names (relation names to start with)
         -- 3: tail_names (relation names to propagate with)
         -- 4: synset_name
         -- Рекурсивный поиск слов-претендентов на общий корень. Поиск выполняется с учётом значений слов.
 
-        WITH RECURSIVE tree (id, name, id_path, name_path, parent_relation_name) AS (
+        WITH RECURSIVE tree (id, name, id_path, name_path, relation_path) AS (
 
         -- Поиск начинается от заданного значения (synset_name)
           SELECT
@@ -294,7 +294,7 @@ def prepare_search_cognates_transitionally(cursor):
             name,
             ARRAY[id] id_path,
             ARRAY[name] name_path,
-            $2 parent_relation_name
+            ARRAY[]::text[] relation_path
           FROM concepts
           WHERE name = $4
 
@@ -307,13 +307,15 @@ def prepare_search_cognates_transitionally(cursor):
             c.name,
             array_append(tree.id_path, c.id),
             array_append(tree.name_path, c.name),
-            r.name parent_relation_name
+            array_append(tree.relation_path, r.name)
           FROM tree
             INNER JOIN relations r
               ON r.from_id = tree.id
             INNER JOIN concepts c
               ON c.id = r.to_id
-          WHERE r.name = ANY($3) AND tree.parent_relation_name = $2
+          WHERE r.name = ANY($3)
+            -- last relation in the path should be on of the allowed
+            AND tree.relation_path[array_upper(tree.relation_path, 1)] = ANY($2)
         )
 
         -- Далее поиск выполняется по текстовым входам понятий из под-дерева, найденного в рекурсивной части
@@ -321,7 +323,7 @@ def prepare_search_cognates_transitionally(cursor):
           t.name,
           tree.name synset_name,
           tree.name_path,
-          tree.parent_relation_name
+          tree.relation_path
         FROM tree
           INNER JOIN synonyms s
             ON s.concept_id = tree.id
@@ -329,7 +331,7 @@ def prepare_search_cognates_transitionally(cursor):
             ON t.id = s.entry_id
         WHERE t.name != $1
           AND array_length(id_path, 1) > 1
-          AND substr(t.name, 1, 4) = substr($1, 1, 4)
+          -- AND substr(t.name, 1, 4) = substr($1, 1, 4)
           AND array_length(regexp_split_to_array(t.name, '\s+'), 1) = 1"""
     cursor.execute("PREPARE search_cognates_transitionally AS " + sql)
 
@@ -547,38 +549,28 @@ class Worker(Thread):
                 if not test:
                     lexemes.append((cognate["name"], cognate["synset_name"]))
 
-        for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
-            if name == "ВЫШЕ":
-                tail_names = ["АСЦ", "ЦЕЛОЕ"]
-            elif name == "ЦЕЛОЕ":
-                tail_names = ["АСЦ"]
+        for i in range(2):
+            if i == 0:
+                names = ["ВЫШЕ", "ЦЕЛОЕ"]
+                tail_names = ["АСЦ", "ЧАСТЬ"]
             else:
-                tail_names = [""]
+                names = ["НИЖЕ", "ЧАСТЬ"]
+                tail_names = ["АСЦ"]
 
             params = {
                 "word": row["name"],
-                "name": name,
-                "tail_names": [name] + tail_names,
+                "names": names,
+                "tail_names": names + tail_names,
                 "synset_name": row["synset_name"],
             }
             cur2.execute(
                 """EXECUTE search_cognates_transitionally(
-                    %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
+                    %(word)s, %(names)s, %(tail_names)s, %(synset_name)s)""",
                 params,
             )
             for senses_chain in cur2.fetchall():
                 if is_cognates(row["name"], senses_chain["name"]):
-                    chain = (
-                        senses_chain["name"]
-                        + ":"
-                        + " ("
-                        + name
-                        + ") "
-                        + " → ".join(senses_chain["name_path"])
-                        + " ("
-                        + senses_chain["parent_relation_name"]
-                        + ")"
-                    )
+                    chain = print_chain(senses_chain["name_path"], senses_chain["relation_path"])
                     self.logger.info("    " + chain, extra=e(row["name"]))
                     if not test:
                         lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
@@ -596,6 +588,16 @@ class Worker(Thread):
                     except IntegrityError:
                         # Если такое отношение уже есть, не останавливаем выполнение
                         pass
+
+
+def print_chain(concepts: List[str], relations: List[str]):
+    chain = ""
+    i = 0
+    for name in concepts:
+        chain += name
+        if i in relations:
+            chain += " -{}→ ".format(relations[i])
+    return chain
 
 
 if __name__ == "__main__":

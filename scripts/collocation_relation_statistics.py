@@ -2,7 +2,7 @@
 import argparse
 import sys
 from collections import defaultdict
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from psycopg2 import IntegrityError, connect, extras
 
@@ -276,7 +276,7 @@ def prepare_ruthes_relation_query(cursor):
 def prepare_transitional_relation_query(cursor):
     sql = """
       -- 1: word (particular word in the current collocation)
-      -- 2: name (relation name to start with)
+      -- 2: names (relation names to start with)
       -- 3: tail_names (relation names to propagate with)
       -- 4: synset_name (name of the corresponding to the current collocation synset)
       -- Search a source word recursively through RuThes relations.
@@ -288,7 +288,7 @@ def prepare_transitional_relation_query(cursor):
             name,
             ARRAY[id] id_path,
             ARRAY[name] name_path,
-            $2 parent_relation_name
+            ARRAY[] relation_path
           FROM concepts
             WHERE name = $4
 
@@ -299,13 +299,15 @@ def prepare_transitional_relation_query(cursor):
             c.name,
             array_append(tree.id_path, c.id),
             array_append(tree.name_path, c.name),
-            r.name parent_relation_name
+            array_append(tree.relation_path, r.name)
           FROM tree
             INNER JOIN relations r
               ON r.from_id = tree.id
             INNER JOIN concepts c
               ON c.id = r.to_id
-          WHERE r.name = ANY($3) AND tree.parent_relation_name = $2
+          WHERE r.name = ANY($3)
+            -- last relation in the path should be on of the allowed
+            AND tree.relation_path[array_upper(tree.relation_path, 1)] = ANY($2)
         )
 
         SELECT tree.*
@@ -652,31 +654,23 @@ def search_in_ruthes_transitionally(
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     chain = None
     relation_name = "ВЫВОД"
-    for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
-        if name == "ВЫШЕ":
+    for i in range(2):
+        if i == 0:
+            names = ["ВЫШЕ", "ЦЕЛОЕ"]
             tail_names = ["АСЦ", "ЧАСТЬ"]
-        elif name == "ЧАСТЬ":
-            tail_names = ["АСЦ"]
         else:
-            tail_names = [""]
+            names = ["НИЖЕ", "ЧАСТЬ"]
+            tail_names = ["АСЦ"]
 
-        params = {"word": word, "name": name, "tail_names": [name] + tail_names, "synset_name": synset_name}
+        params = {"word": word, "names": names, "tail_names": names + tail_names, "synset_name": synset_name}
         cur.execute(
             """EXECUTE select_transited_relation(
-                %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
+                %(word)s, %(names)s, %(tail_names)s, %(synset_name)s)""",
             params,
         )
         senses_chain = cur.fetchone()
         if senses_chain is not None:
-            chain = (
-                "("
-                + name
-                + ") "
-                + " → ".join(senses_chain["name_path"])
-                + " ("
-                + senses_chain["parent_relation_name"]
-                + ")"
-            )
+            chain = print_chain(senses_chain["name_path"], senses_chain["relation_path"])
             break
 
     return (
@@ -684,6 +678,16 @@ def search_in_ruthes_transitionally(
         if senses_chain is not None
         else (None, None, None)
     )
+
+
+def print_chain(concepts: List[str], relations: List[str]):
+    chain = ""
+    i = 0
+    for name in concepts:
+        chain += name
+        if i in relations:
+            chain += " -{}→ ".format(relations[i])
+    return chain
 
 
 def search_in_ruthes_bitransitionally(

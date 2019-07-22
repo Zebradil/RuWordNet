@@ -573,8 +573,8 @@ class Worker(Thread):
             )
             for senses_chain in cur2.fetchall():
                 if is_cognates(row["name"], senses_chain["name"]):
-                    chain = print_chain(senses_chain["name_path"], senses_chain["relation_path"])
-                    self.logger.info("    " + chain, extra=e(row["name"]))
+                    chain = build_chain(senses_chain["name_path"], senses_chain["relation_path"])
+                    self.logger.info("    " + senses_chain["name"] + ":" + chain, extra=e(row["name"]))
                     if not test:
                         lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
 
@@ -593,7 +593,7 @@ class Worker(Thread):
                         pass
 
 
-def print_chain(concepts: List[str], relations: List[str]):
+def build_chain(concepts: List[str], relations: List[str]):
     chain = ""
     i = 0
     for name in concepts:

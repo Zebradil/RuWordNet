@@ -691,6 +691,7 @@ def print_chain(concepts: List[str], relations: List[str]):
         chain += name
         if i < len(relations):
             chain += " -{}→ ".format(relations[i])
+        i += 1
     return chain
 
 

@@ -5,11 +5,9 @@
 
 import argparse
 import logging
-import multiprocessing
 import os
 import sys
-from queue import Queue
-from threading import Thread
+from multiprocessing import JoinableQueue, Process, cpu_count
 from typing import Dict, List
 
 from psycopg2 import IntegrityError, connect, extras
@@ -471,8 +469,8 @@ def main():
           WHERE array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1"""
         cur.execute(sql)
 
-        workers_count = multiprocessing.cpu_count() - 1
-        queue = Queue(workers_count * 10)
+        workers_count = cpu_count() - 1
+        queue = JoinableQueue(workers_count * 10)
         for i in range(workers_count):
             worker = Worker()
             worker.set(queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test)
@@ -491,8 +489,8 @@ def main():
     print("Done")
 
 
-class Worker(Thread):
-    def set(self, queue: Queue, connection_string: str, logger: logging.Logger, is_test=False) -> None:
+class Worker(Process):
+    def set(self, queue: JoinableQueue, connection_string: str, logger: logging.Logger, is_test=False) -> None:
         self.queue = queue
         self.connection_string = connection_string
         self.logger = logger

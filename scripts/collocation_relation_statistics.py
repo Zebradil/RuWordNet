@@ -307,7 +307,10 @@ def prepare_transitional_relation_query(cursor):
               ON c.id = r.to_id
           WHERE r.name = ANY($3)
             -- last relation in the path should be on of the allowed
-            AND tree.relation_path[array_upper(tree.relation_path, 1)] = ANY($2)
+            AND (
+              tree.relation_path[array_upper(tree.relation_path, 1)] = ANY($2)
+              OR array_upper(tree.relation_path, 1) IS NULL
+            )
         )
 
         SELECT tree.*

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import argparse
 import sys
 from collections import defaultdict
@@ -688,7 +689,7 @@ def print_chain(concepts: List[str], relations: List[str]):
     i = 0
     for name in concepts:
         chain += name
-        if i in relations:
+        if i < len(relations):
             chain += " -{}→ ".format(relations[i])
     return chain
 

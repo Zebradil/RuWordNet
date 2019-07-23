@@ -272,8 +272,7 @@ def prepare_search_cognates(cursor):
                  -- Поиск происходит по конкретному значению, которое определяется через synsets.id/concept.id
                  AND c.name = $4
              ) s
-        WHERE substr(s.name, 1, 4) = substr($3, 1, 4)
-          AND array_length(regexp_split_to_array(s.name, '\s+'), 1) = 1"""
+        WHERE array_length(regexp_split_to_array(s.name, '\s+'), 1) = 1"""
 
     cursor.execute("PREPARE search_cognates AS " + sql)
 
@@ -334,7 +333,6 @@ def prepare_search_cognates_transitionally(cursor):
             ON t.id = s.entry_id
         WHERE t.name != $1
           AND array_length(id_path, 1) > 1
-          -- AND substr(t.name, 1, 4) = substr($1, 1, 4)
           AND array_length(regexp_split_to_array(t.name, '\s+'), 1) = 1"""
     cursor.execute("PREPARE search_cognates_transitionally AS " + sql)
 

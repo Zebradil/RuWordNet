@@ -548,7 +548,7 @@ class Worker(Process):
             "synset_name": row["synset_name"],
         }
         cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
-        for cognate in cur2.fetchall():
+        for cognate in cur2:
             if is_cognates(row["name"], cognate["name"]):
                 self.logger.info("    " + cognate["name"] + ": " + cognate["rel_name"], extra=e(row["name"]))
                 if not test:
@@ -573,7 +573,7 @@ class Worker(Process):
                     %(word)s, %(names)s, %(tail_names)s, %(synset_name)s)""",
                 params,
             )
-            for senses_chain in cur2.fetchall():
+            for senses_chain in cur2:
                 if is_cognates(row["name"], senses_chain["name"]):
                     chain = build_chain(senses_chain["name_path"], senses_chain["relation_path"])
                     self.logger.info("    " + senses_chain["name"] + ":" + chain, extra=e(row["name"]))

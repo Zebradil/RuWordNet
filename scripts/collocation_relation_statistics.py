@@ -661,10 +661,10 @@ def search_in_ruthes_transitionally(
     for i in range(2):
         if i == 0:
             names = ["ВЫШЕ", "ЦЕЛОЕ"]
-            tail_names = ["АСЦ", "ЧАСТЬ"]
+            tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
         else:
             names = ["НИЖЕ", "ЧАСТЬ"]
-            tail_names = ["АСЦ"]
+            tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
 
         params = {"word": word, "names": names, "tail_names": names + tail_names, "synset_name": synset_name}
         cur.execute(

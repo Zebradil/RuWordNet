@@ -279,10 +279,9 @@ def prepare_search_cognates(cursor):
 
 def prepare_search_cognates_transitionally(cursor):
     sql = r"""
-        -- 1: word
+        -- 1: synset_name
         -- 2: names (relation names to start with)
         -- 3: tail_names (relation names to propagate with)
-        -- 4: synset_name
         -- Рекурсивный поиск слов-претендентов на общий корень. Поиск выполняется с учётом значений слов.
 
         WITH RECURSIVE tree (id, name, id_path, name_path, relation_path) AS (
@@ -295,7 +294,7 @@ def prepare_search_cognates_transitionally(cursor):
             ARRAY[name] name_path,
             ARRAY[]::text[] relation_path
           FROM concepts
-          WHERE name = $4
+          WHERE name = $1
 
           UNION ALL
 
@@ -331,8 +330,8 @@ def prepare_search_cognates_transitionally(cursor):
             ON s.concept_id = tree.id
           INNER JOIN text_entry t
             ON t.id = s.entry_id
-        WHERE t.name != $1
-          AND array_length(id_path, 1) > 1
+        WHERE tree.name != $1
+          AND array_length(relation_path, 1) >= 1
           AND array_length(regexp_split_to_array(t.name, '\s+'), 1) = 1"""
     cursor.execute("PREPARE search_cognates_transitionally AS " + sql)
 
@@ -555,20 +554,15 @@ class Worker(Process):
         for i in range(2):
             if i == 0:
                 names = ["ВЫШЕ", "ЦЕЛОЕ"]
-                tail_names = ["АСЦ", "ЧАСТЬ"]
+                tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
             else:
                 names = ["НИЖЕ", "ЧАСТЬ"]
-                tail_names = ["АСЦ"]
+                tail_names = ["АСЦ", "АСЦ1", "АСЦ2"]
 
-            params = {
-                "word": row["name"],
-                "names": names,
-                "tail_names": names + tail_names,
-                "synset_name": row["synset_name"],
-            }
+            params = {"names": names, "tail_names": names + tail_names, "synset_name": row["synset_name"]}
             cur2.execute(
                 """EXECUTE search_cognates_transitionally(
-                    %(word)s, %(names)s, %(tail_names)s, %(synset_name)s)""",
+                    %(synset_name)s, %(names)s, %(tail_names)s)""",
                 params,
             )
             for senses_chain in cur2:

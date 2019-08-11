@@ -380,13 +380,13 @@ def cache_result(func):
         key, needle = get_key_and_needle(word1, word2)
         if key in cached_results:
             if needle in cached_results[key]:
-                # print('got from cache')
+                # logging.debug('got from cache')
                 return cached_results[key][needle]
         else:
             cached_results[key] = {}
         result = func(word1, word2)
         cached_results[key][needle] = result
-        # print('added to cache')
+        # logging.debug('added to cache')
         return result
 
     return cache_result_inner
@@ -394,34 +394,34 @@ def cache_result(func):
 
 @cache_result
 def is_cognates(word1, word2):
-    # print("checking words: {} {}".format(word1, word2))
+    logging.debug("checking words: {} {}".format(word1, word2))
     if word1 == word2:
-        # print("same word")
+        logging.debug("same word")
         return False
     if word1 in predefined_cognates:
         if word2 in predefined_cognates[word1]:
-            # print("from predefined list")
+            logging.debug("from predefined list")
             return True
     words1 = remove_prefixes(word1)
     words2 = remove_prefixes(word2)
     for sub1 in words1:
         for sub2 in words2:
             if check_substrings(sub1, sub2):
-                # print("are cognates: {} {}".format(word1, word2))
+                logging.debug("are cognates: {} {}".format(word1, word2))
                 return True
-    # print("aren't cognates: {} {}".format(word1, word2))
+    logging.debug("aren't cognates: {} {}".format(word1, word2))
     return False
 
 
 def check_substrings(word1, word2):
     match_len = min(len(word1), len(word2), 3)
-    # print("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
+    logging.debug("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
     if word1[:match_len] == word2[:match_len]:
-        # print("beginnings are equal")
+        logging.debug("beginnings are equal")
         return True
     for root in get_roots_group(word1):
         if word2.find(root) == 0:
-            # print("root is found {}".format(root))
+            logging.debug("root is found {}".format(root))
             return True
     return False
 
@@ -453,7 +453,7 @@ def main():
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
 
-        print("search collocations", flush=True)
+        logging.debug("search collocations")
         sql = r"""
           SELECT
             se.id,
@@ -474,16 +474,18 @@ def main():
             worker.daemon = True
             worker.start()
 
-        print("start looping", flush=True)
+        logging.debug("start looping")
         rows = cur.fetchall()
-        for row in tqdm(rows, file=sys.stdout):
+        if logging.root.level > logging.DEBUG:
+            rows = tqdm(rows, file=sys.stdout)
+        for row in rows:
             queue.put(row)
 
         queue.join()
 
         # TODO shutdown workers?
 
-    print("Done")
+    logging.debug("Done")
 
 
 class Worker(Process):
@@ -532,7 +534,6 @@ class Worker(Process):
         e.counter = 0
         test = self.is_test
         cur2 = self.cursor
-        # print(flush=True)
         self.logger.info("{} ({})".format(row["name"], row["synset_name"]), extra=e(row["name"]))
 
         if not test:

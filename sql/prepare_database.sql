@@ -115,3 +115,12 @@ INSERT INTO relation_types (name, reverse_relation_name, parent_name) VALUES
   ('derived_from', NULL, NULL),
   ('composed_of', NULL, NULL),
   ('POS-synonymy', 'POS-synonymy', NULL);
+
+CREATE TABLE ili (
+  link_type TEXT,
+  concept_id INT REFERENCES concepts (id),
+  wn_lemma TEXT,
+  wn_id TEXT,
+  wn_gloss TEXT,
+  PRIMARY KEY (concept_id, wn_id)
+);

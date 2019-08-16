@@ -4,7 +4,7 @@ import argparse
 import os
 
 from lxml import etree
-from psycopg2 import extras, connect
+from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 

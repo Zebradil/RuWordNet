@@ -16,4 +16,5 @@ raw2xml/out/*
 *.tgz
 /*.sql
 *.tsv
-data/*
+/data/*
+/out/*

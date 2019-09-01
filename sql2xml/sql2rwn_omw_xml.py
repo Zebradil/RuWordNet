@@ -283,7 +283,10 @@ def run(connection):
                     "id": synset_id(synset),
                     "partOfSpeech": pos(synset["part_of_speech"]),
                 }
-                if synset["wn_id"] is not None:
+                if (
+                    synset["wn_id"] is not None
+                    and args["partOfSpeech"] == synset["wn_id"][-1]
+                ):
                     args["ili"] = synset["wn_id"]
                 Synset = etree.SubElement(Lexicon, "Synset", **args)
 

@@ -26,6 +26,8 @@ logging.basicConfig(level=ARGS.level)
 
 extras.register_uuid()
 
+LEXICON_ID = "RuWordNet"
+
 allowed_synset_relations = {
     "agent",
     "also",
@@ -138,7 +140,7 @@ def pos(part_of_speech):
 
 
 def synset_id(data):
-    return "-".join((str(data["concept_id"]), pos(data["part_of_speech"])))
+    return "-".join((LEXICON_ID, str(data["concept_id"]), pos(data["part_of_speech"])))
 
 
 def sense_id(data):
@@ -157,7 +159,7 @@ def run(connection):
     Lexicon = etree.SubElement(
         LexicalResource,
         "Lexicon",
-        id="RuWordNet",
+        id=LEXICON_ID,
         label="RuWordNet",
         language="ru",
         email="john.doe@example.com",
@@ -223,9 +225,7 @@ def run(connection):
                     writtenForm=lemma,
                     partOfSpeech=pos(sense["part_of_speech"]),
                 )
-                etree.SubElement(
-                    LexicalEntry, "Form", writtenForm=sense["name"]
-                )
+                etree.SubElement(LexicalEntry, "Form", writtenForm=sense["name"])
                 for sense in senses:
                     Sense = etree.SubElement(
                         LexicalEntry,

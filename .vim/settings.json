@@ -1,0 +1,22 @@
+{
+  "pyls": {
+    "plugins": {
+      "flake8": {
+        "enabled": true
+      },
+      "pyflakes": {
+        "enabled": true
+      },
+      "pycodestyle": {
+        "enabled": true
+      },
+      "mypy": {
+        "enabled": true
+      },
+      "pylint": {
+        "enabled": true,
+        "ignore": ["C0111"]
+      }
+    }
+  }
+}

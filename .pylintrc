@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+enable =
+    useless-suppression
+
+disable = missing-docstring

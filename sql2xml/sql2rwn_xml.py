@@ -31,6 +31,16 @@ ARGS = parser.parse_args()
 extras.register_uuid()
 
 
+def gen_synset_index(row) -> str:
+    return "-".join((str(row["concept_id"]), row["part_of_speech"][0]))
+
+
+def gen_sense_index(row) -> str:
+    return "-".join(
+        (str(row["concept_id"]), row["part_of_speech"][0], str(row["entry_id"]))
+    )
+
+
 class Generator:
     def __init__(self, out_dir: str, connection):
         self.connection = connection
@@ -49,31 +59,45 @@ class Generator:
             print("synsets")
             cur.execute(
                 """
-              SELECT
-                synsets.*,
-                array_agg(senses.id) senses
-              FROM synsets
-              INNER JOIN senses
-                ON synsets.id = senses.synset_id
-              GROUP BY synsets.id
-              ORDER BY part_of_speech"""
+                SELECT
+                  synsets.*,
+                  c.id concept_id,
+                  array_agg(senses.id) senses
+                FROM synsets
+                INNER JOIN senses ON synsets.id = senses.synset_id
+                INNER JOIN concepts c ON c.name = synsets.name
+                GROUP BY synsets.id, c.id
+                ORDER BY part_of_speech
+                """
             )
             rows = cur.fetchall()
             self.synsets = [
-                {**row, **{"relations": [], "index": self.gen_synset_index(row)}}
+                {**row, **{"relations": [], "index": gen_synset_index(row)}}
                 for row in rows
             ]
             synsets_by_id = {synset["id"]: synset for synset in self.synsets}
 
             print("senses")
-            cur.execute("SELECT * FROM senses")
+            cur.execute(
+                """
+                SELECT
+                  senses.*,
+                  synsets.part_of_speech,
+                  c.id concept_id,
+                  t.id entry_id
+                FROM synsets
+                INNER JOIN senses ON synsets.id = senses.synset_id
+                INNER JOIN concepts c ON c.name = synsets.name
+                INNER JOIN text_entry t ON t.name = senses.name
+                """
+            )
             rows = cur.fetchall()
             self.senses = {
                 row["id"]: {
                     **row,
                     **{
                         "synset_id": synsets_by_id[row["synset_id"]]["index"],
-                        "id": self.gen_sense_index(row),
+                        "id": gen_sense_index(row),
                         "meaning": int(row["meaning"]) + 1,
                     },
                 }
@@ -173,14 +197,6 @@ class Generator:
             for relation in self.synset_relations
             if relation["parent_id"] == synset["id"]
         ]
-
-    def gen_synset_index(self, row):
-        self.synset_counter += 1
-        return row["part_of_speech"][0] + str(self.synset_counter)
-
-    def gen_sense_index(self, row):
-        self.sense_counter += 1
-        return self.sense_counter
 
     def generate_sense_relations_file(self, relation_name, cur):
         print('Generating "{}" relations file'.format(relation_name))

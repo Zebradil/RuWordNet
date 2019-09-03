@@ -9,7 +9,9 @@ from psycopg2 import connect, extras
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 parser = argparse.ArgumentParser(description="Generate RuWordNet xml files")
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -57,7 +59,10 @@ class Generator:
               ORDER BY part_of_speech"""
             )
             rows = cur.fetchall()
-            self.synsets = [{**row, **{"relations": [], "index": self.gen_synset_index(row)}} for row in rows]
+            self.synsets = [
+                {**row, **{"relations": [], "index": self.gen_synset_index(row)}}
+                for row in rows
+            ]
             synsets_by_id = {synset["id"]: synset for synset in self.synsets}
 
             print("senses")
@@ -96,7 +101,9 @@ class Generator:
                         print()
                         self.write_file(synsets_root, "synsets", current_pos)
                         self.write_file(senses_root, "senses", current_pos)
-                        self.write_file(synset_relations_root, "synset_relations", current_pos)
+                        self.write_file(
+                            synset_relations_root, "synset_relations", current_pos
+                        )
                     synsets_root = etree.Element("synsets")
                     senses_root = etree.Element("senses")
                     synset_relations_root = etree.Element("relations")
@@ -109,7 +116,11 @@ class Generator:
                 for relation in synset["relations"]:
                     self.add_synset_relation(synset_relations_root, relation)
                 i += 1
-                print("\rProgress: {0}% ({1})".format(round(i / count * 100), i), end="", flush=True)
+                print(
+                    "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
+                    end="",
+                    flush=True,
+                )
             self.write_file(synsets_root, "synsets", current_pos)
             self.write_file(senses_root, "senses", current_pos)
             self.write_file(synset_relations_root, "synset_relations", current_pos)
@@ -157,7 +168,11 @@ class Generator:
         return self.senses[sense_id]
 
     def get_relations(self, synset):
-        return [relation for relation in self.synset_relations if relation["parent_id"] == synset["id"]]
+        return [
+            relation
+            for relation in self.synset_relations
+            if relation["parent_id"] == synset["id"]
+        ]
 
     def gen_synset_index(self, row):
         self.synset_counter += 1
@@ -215,5 +230,7 @@ def xstr(value):
     return "" if value is None else str(value)
 
 
-generator = Generator(out_dir=ARGS.output_directory, connection=connect(ARGS.connection_string))
+generator = Generator(
+    out_dir=ARGS.output_directory, connection=connect(ARGS.connection_string)
+)
 generator.run()

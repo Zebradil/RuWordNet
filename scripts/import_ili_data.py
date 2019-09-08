@@ -6,7 +6,9 @@ import logging
 from psycopg2 import IntegrityError, connect
 
 parser = argparse.ArgumentParser(description="Import Inter Lingual Index data.")
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument("-f", "--file", type=str, help="Source tab-separated file")
 parser.add_argument(
     "-c",
@@ -15,7 +17,9 @@ parser.add_argument(
     help="Postgresql database connection string ({})".format(connection_string),
     default=connection_string,
 )
-parser.add_argument("-n", "--dry-run", help="Do not do changes in the database", action="store_true")
+parser.add_argument(
+    "-n", "--dry-run", help="Do not do changes in the database", action="store_true"
+)
 
 ARGS = parser.parse_args()
 

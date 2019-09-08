@@ -193,112 +193,109 @@ def run(connection):
         for row in cur:
             sense_relations[row["parent_id"]].append(row)
 
-            logging.info("senses")
-            cur.execute(
-                """
-                SELECT
-                  se.id,
-                  se.synset_id,
-                  LOWER(se.name) "name",
-                  LOWER(se.lemma) lemma,
-                  t.id text_entry_id,
-                  LOWER(sy.part_of_speech) part_of_speech,
-                  c.id concept_id
-                FROM senses se
-                  JOIN synsets sy ON sy.id = se.synset_id
-                  JOIN concepts c ON c.name = sy.name
-                  JOIN text_entry t ON t.name = se.name
-                """
-            )
-            lexical_entries = defaultdict(list)
-            for row in cur:
-                lexical_entries[row["lemma"]].append(row)
+        logging.info("senses")
+        cur.execute(
+            """
+            SELECT
+              se.id,
+              se.synset_id,
+              LOWER(se.name) "name",
+              LOWER(se.lemma) lemma,
+              t.id text_entry_id,
+              LOWER(sy.part_of_speech) part_of_speech,
+              c.id concept_id
+            FROM senses se
+              JOIN synsets sy ON sy.id = se.synset_id
+              JOIN concepts c ON c.name = sy.name
+              JOIN text_entry t ON t.name = se.name
+            """
+        )
+        lexical_entries = defaultdict(list)
+        for row in cur:
+            lexical_entries[row["lemma"]].append(row)
 
-            for lemma, senses in lexical_entries.items():
-                sense = senses[0]
-                LexicalEntry = etree.SubElement(
-                    Lexicon, "LexicalEntry", id=str(sense["text_entry_id"])
+        for lemma, senses in lexical_entries.items():
+            sense = senses[0]
+            LexicalEntry = etree.SubElement(
+                Lexicon, "LexicalEntry", id=str(sense["text_entry_id"])
+            )
+            etree.SubElement(
+                LexicalEntry,
+                "Lemma",
+                writtenForm=lemma,
+                partOfSpeech=pos(sense["part_of_speech"]),
+            )
+            etree.SubElement(LexicalEntry, "Form", writtenForm=sense["name"])
+            for sense in senses:
+                Sense = etree.SubElement(
+                    LexicalEntry, "Sense", id=sense_id(sense), synset=synset_id(sense)
                 )
-                etree.SubElement(
-                    LexicalEntry,
-                    "Lemma",
-                    writtenForm=lemma,
-                    partOfSpeech=pos(sense["part_of_speech"]),
-                )
-                etree.SubElement(LexicalEntry, "Form", writtenForm=sense["name"])
-                for sense in senses:
-                    Sense = etree.SubElement(
-                        LexicalEntry,
-                        "Sense",
-                        id=sense_id(sense),
-                        synset=synset_id(sense),
-                    )
 
-                    for relation in sense_relations[sense["id"]]:
-                        args = {"target": sense_id(relation)}
-                        relType = sense_rel(relation["name"])
-                        if relType in allowed_sense_relations:
-                            args["relType"] = relType
-                        else:
-                            args["relType"] = "other"
-                            args["note"] = relType
-                        etree.SubElement(Sense, "SenseRelation", **args)
-
-            logging.info("synset relations")
-            cur.execute(
-                """
-                SELECT
-                  syr.parent_id,
-                  syr.child_id,
-                  syr.name,
-                  LOWER(sy.part_of_speech) part_of_speech,
-                  c.id concept_id
-                FROM synset_relations syr
-                  JOIN synsets sy ON sy.id = syr.child_id
-                  JOIN concepts c ON c.name = sy.name
-                """
-            )
-            synset_relations = defaultdict(list)
-            for row in cur:
-                synset_relations[row["parent_id"]].append(row)
-
-            logging.info("synsets")
-            cur.execute(
-                """
-                SELECT
-                  sy.id,
-                  sy.name,
-                  sy.definition,
-                  LOWER(sy.part_of_speech) part_of_speech,
-                  c.id concept_id,
-                  ili.wn_id,
-                  ili.wn_gloss
-                FROM synsets sy
-                 JOIN concepts c ON c.name = sy.name
-                 LEFT JOIN ili ON ili.concept_id = c.id
-                """
-            )
-            for synset in cur:
-                args = {
-                    "id": synset_id(synset),
-                    "partOfSpeech": pos(synset["part_of_speech"]),
-                }
-                if (
-                    synset["wn_id"] is not None
-                    and args["partOfSpeech"] == synset["wn_id"][-1]
-                ):
-                    args["ili"] = synset["wn_id"]
-                Synset = etree.SubElement(Lexicon, "Synset", **args)
-
-                for relation in synset_relations[synset["id"]]:
-                    args = {"target": synset_id(relation)}
-                    relType = synset_rel(relation["name"])
-                    if relType in allowed_synset_relations:
+                for relation in sense_relations[sense["id"]]:
+                    args = {"target": sense_id(relation)}
+                    relType = sense_rel(relation["name"])
+                    if relType in allowed_sense_relations:
                         args["relType"] = relType
                     else:
                         args["relType"] = "other"
                         args["note"] = relType
-                    etree.SubElement(Synset, "SynsetRelation", **args)
+                    etree.SubElement(Sense, "SenseRelation", **args)
+
+        logging.info("synset relations")
+        cur.execute(
+            """
+            SELECT
+              syr.parent_id,
+              syr.child_id,
+              syr.name,
+              LOWER(sy.part_of_speech) part_of_speech,
+              c.id concept_id
+            FROM synset_relations syr
+              JOIN synsets sy ON sy.id = syr.child_id
+              JOIN concepts c ON c.name = sy.name
+            """
+        )
+        synset_relations = defaultdict(list)
+        for row in cur:
+            synset_relations[row["parent_id"]].append(row)
+
+        logging.info("synsets")
+        cur.execute(
+            """
+            SELECT
+              sy.id,
+              sy.name,
+              sy.definition,
+              LOWER(sy.part_of_speech) part_of_speech,
+              c.id concept_id,
+              ili.wn_id,
+              ili.wn_gloss
+            FROM synsets sy
+             JOIN concepts c ON c.name = sy.name
+             LEFT JOIN ili ON ili.concept_id = c.id
+            """
+        )
+        for synset in cur:
+            args = {
+                "id": synset_id(synset),
+                "partOfSpeech": pos(synset["part_of_speech"]),
+            }
+            if (
+                synset["wn_id"] is not None
+                and args["partOfSpeech"] == synset["wn_id"][-1]
+            ):
+                args["ili"] = synset["wn_id"]
+            Synset = etree.SubElement(Lexicon, "Synset", **args)
+
+            for relation in synset_relations[synset["id"]]:
+                args = {"target": synset_id(relation)}
+                relType = synset_rel(relation["name"])
+                if relType in allowed_synset_relations:
+                    args["relType"] = relType
+                else:
+                    args["relType"] = "other"
+                    args["note"] = relType
+                etree.SubElement(Synset, "SynsetRelation", **args)
 
         print(
             etree.tostring(

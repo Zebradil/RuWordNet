@@ -12,6 +12,7 @@ tqdm = "*"
 [dev-packages]
 pylint = "*"
 black = "*"
+ipython = "*"
 
 [requires]
 python_version = "3.7"

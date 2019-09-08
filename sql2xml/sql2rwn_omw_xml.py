@@ -146,6 +146,7 @@ def synset_id(data):
 def sense_id(data):
     return "-".join(
         (
+            LEXICON_ID,
             str(data["concept_id"]),
             pos(data["part_of_speech"]),
             str(data["text_entry_id"]),
@@ -176,17 +177,17 @@ def run(connection):
         cur.execute(
             """
             SELECT
-                  ser.parent_id,
-                  ser.child_id,
-                  ser.name,
-                  c.id concept_id,
-                  LOWER(sy.part_of_speech) part_of_speech,
-                  t.id text_entry_id
-                FROM sense_relations ser
-                  JOIN senses se ON se.id = ser.child_id
-                  JOIN synsets sy ON sy.id = se.synset_id
-                  JOIN concepts c ON c.name = sy.name
-                  JOIN text_entry t ON t.name = se.name
+              ser.parent_id,
+              ser.child_id,
+              ser.name,
+              c.id concept_id,
+              LOWER(sy.part_of_speech) part_of_speech,
+              t.id text_entry_id
+            FROM sense_relations ser
+              JOIN senses se ON se.id = ser.child_id
+              JOIN synsets sy ON sy.id = se.synset_id
+              JOIN concepts c ON c.name = sy.name
+              JOIN text_entry t ON t.name = se.name
             """
         )
         sense_relations = defaultdict(list)
@@ -268,11 +269,13 @@ def run(connection):
               sy.definition,
               LOWER(sy.part_of_speech) part_of_speech,
               c.id concept_id,
+              map.ili,
               ili.wn_id,
               ili.wn_gloss
             FROM synsets sy
              JOIN concepts c ON c.name = sy.name
              LEFT JOIN ili ON ili.concept_id = c.id
+             LEFT JOIN ili_map_wn30 map ON map.wn = ili.wn_id
             """
         )
         for synset in cur:
@@ -284,7 +287,8 @@ def run(connection):
                 synset["wn_id"] is not None
                 and args["partOfSpeech"] == synset["wn_id"][-1]
             ):
-                args["ili"] = synset["wn_id"]
+                args["ili"] = synset["ili"]
+                args["note"] = synset["wn_id"]
             Synset = etree.SubElement(Lexicon, "Synset", **args)
 
             for relation in synset_relations[synset["id"]]:

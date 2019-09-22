@@ -124,3 +124,16 @@ CREATE TABLE ili (
   wn_gloss TEXT,
   PRIMARY KEY (concept_id, wn_id)
 );
+CREATE INDEX ili_wn_id ON ili (wn_id);
+CREATE INDEX ili_wn_id_substring_1 ON ili (substring(wn_id, '^\d+'));
+CREATE INDEX ili_wn_id_substring_2 ON ili (substring(wn_id, '.$'));
+
+CREATE TABLE ili_map_wn30 (
+    ili text NOT NULL,
+    wn text,
+    extra text,
+    PRIMARY KEY (ili, wn)
+);
+CREATE INDEX ili_map_wn30_wn ON ili_map_wn30 (wn);
+CREATE INDEX ili_map_wn30_wn_substring_1 ON ili_map_wn30 (substring(wn, '^\d+'));
+CREATE INDEX ili_map_wn30_wn_substring_2 ON ili_map_wn30 (substring(wn, '.$'));

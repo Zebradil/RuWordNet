@@ -100,3 +100,8 @@ dump-db:
 # IMPORT ILI DATA
 import-syn-tabs:
 	scripts/import_ili_data.sh
+
+# GENERATE OMW RWN
+gen-ruwordnet-omw:
+	pipenv run python sql2xml/sql2rwn_omw_xml.py > rwn_omw.xml
+	tar -czvf rwn_omw-$$(date +%F).tgz rwn_omw.xml

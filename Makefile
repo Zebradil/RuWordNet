@@ -97,3 +97,6 @@ dump-db:
 	PGPASSWORD=$(DB_PASS) pg_dump -h $(DB_HOST) -U $(DB_USER) $(DB_NAME) -n public > rwn-$(DATE).sql
 	tar -czvf rwn-$(DATE).sql.tgz rwn-$(DATE).sql
 
+# IMPORT ILI DATA
+import-syn-tabs:
+	scripts/import_ili_data.sh

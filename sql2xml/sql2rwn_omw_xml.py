@@ -270,12 +270,17 @@ def run(connection):
               LOWER(sy.part_of_speech) part_of_speech,
               c.id concept_id,
               map.ili,
-              ili.wn_id,
+              map.wn wn_id,
               ili.wn_gloss
             FROM synsets sy
-             JOIN concepts c ON c.name = sy.name
-             LEFT JOIN ili ON ili.concept_id = c.id
-             LEFT JOIN ili_map_wn30 map ON map.wn = ili.wn_id
+              JOIN concepts c ON c.name = sy.name
+              LEFT JOIN ili ON ili.concept_id = c.id
+              LEFT JOIN ili_map_wn30 map
+                ON (
+                  map.wn = ili.wn_id
+                  OR substring(map.wn, '^\d+') = substring(ili.wn_id, '^\d+')
+                  AND ARRAY[substring(map.wn, '.$'), substring(ili.wn_id, '.$')] @> ARRAY['a', 's']
+                )
             """
         )
         for synset in cur:

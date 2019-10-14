@@ -122,18 +122,29 @@ CREATE TABLE ili (
   wn_lemma TEXT,
   wn_id TEXT,
   wn_gloss TEXT,
-  PRIMARY KEY (concept_id, wn_id)
+  source TEXT NOT NULL,
+  PRIMARY KEY (concept_id, wn_id, source)
 );
 CREATE INDEX ili_wn_id ON ili (wn_id);
 CREATE INDEX ili_wn_id_substring_1 ON ili (substring(wn_id, '^\d+'));
 CREATE INDEX ili_wn_id_substring_2 ON ili (substring(wn_id, '.$'));
+CREATE INDEX ili_source ON ili (source);
 
-CREATE TABLE ili_map_wn30 (
+CREATE TABLE ili_map_wn (
     ili text NOT NULL,
     wn text,
-    extra text,
-    PRIMARY KEY (ili, wn)
+    version int,
+    PRIMARY KEY (ili, wn, version)
 );
-CREATE INDEX ili_map_wn30_wn ON ili_map_wn30 (wn);
-CREATE INDEX ili_map_wn30_wn_substring_1 ON ili_map_wn30 (substring(wn, '^\d+'));
-CREATE INDEX ili_map_wn30_wn_substring_2 ON ili_map_wn30 (substring(wn, '.$'));
+CREATE INDEX ili_map_wn_wn ON ili_map_wn (wn);
+CREATE INDEX ili_map_wn_version ON ili_map_wn (version);
+CREATE INDEX ili_map_wn_wn_substring_1 ON ili_map_wn (substring(wn, '^\d+'));
+CREATE INDEX ili_map_wn_wn_substring_2 ON ili_map_wn (substring(wn, '.$'));
+
+CREATE TABLE wn_mapping (
+    wn30 text NOT NULL,
+    wn31 text NOT NULL,
+    kind text NOT NULL,
+    PRIMARY KEY (wn30, wn31, kind)
+);
+CREATE INDEX wn_mapping_wn31 ON wn_mapping (wn31);

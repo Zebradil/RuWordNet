@@ -68,14 +68,14 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
     for wn_id in list(ili_auto.keys()) + list(ili_manual.keys()):
         ili_auto_item = get(ili_auto, wn_id)
         ili_manual_item = get(ili_manual, wn_id)
+        concepts_auto = ili_auto_item["concepts"] if ili_auto_item else []
+        concepts_manual = ili_manual_item["concepts"] if ili_manual_item else []
         row = {
-            "same": "yes" if ili_auto_item == ili_manual_item else "",
+            "same": "yes" if concepts_auto == concepts_manual else "",
             "wn_id": wn_id,
             "auto_lemma": get(ili_auto_item, "wn_lemma"),
             "manual_lemma": get(ili_manual_item, "wn_lemma"),
         }
-        concepts_auto = ili_auto_item["concepts"] if ili_auto_item else []
-        concepts_manual = ili_manual_item["concepts"] if ili_manual_item else []
         ia = 0
         im = 0
         while True:

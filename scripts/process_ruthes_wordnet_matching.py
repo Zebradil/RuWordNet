@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+from collections import defaultdict
 
 import psycopg2
 from psycopg2 import extras
@@ -54,6 +55,8 @@ with open(ARGS.file) as file, open(matched_file_name, "w") as matched_file, open
     inserted_lines = 0
     skipped_lines = 0
     line_number = 0
+    matched_concepts = {}
+    stashed_lines = []
     for line in file:
         line_number += 1
         line = line.strip()
@@ -65,11 +68,22 @@ with open(ARGS.file) as file, open(matched_file_name, "w") as matched_file, open
             skipped_lines += 1
             continue
         concept_id = int(parts[0])
+
+        if matched_concepts.get(concept_id, False):
+            continue
+
         wn_id = parts[4]
 
         parts.insert(1, concepts[concept_id])
+
         ili_item = ili_manual.get(wn_id, {}).get(concept_id, False)
         if ili_item:
+            matched_concepts[concept_id] = True
             print("\t".join(parts), file=matched_file)
         else:
+            stashed_lines.append(parts)
+
+    for parts in stashed_lines:
+        concept_id = int(parts[0])
+        if not matched_concepts.get(concept_id, False):
             print("\t".join(parts), file=check_file)

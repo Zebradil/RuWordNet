@@ -10,7 +10,9 @@ PKG_ROOT = os.path.split(__file__)[0]
 
 parser = argparse.ArgumentParser(description="Convert RuThes to RuWordNet.")
 
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -37,6 +39,7 @@ def main():
 
 
 def transform_ruthes_to_ruwordnet():
+
     all_types = {
         "N": ("N", "NG", "NGprep", "PrepG"),
         "V": ("V", "VG", "VGprep", "Prdc"),
@@ -105,12 +108,31 @@ def transform_ruthes_to_ruwordnet():
                 row["meaning"] = 0
             # накопление понятий
             if cid not in concepts:
-                concept = {"id": cid, "name": row["c_name"], "gloss": row["gloss"], "relations": [], "entries": []}
+                concept = {
+                    "id": cid,
+                    "name": row["c_name"],
+                    "gloss": row["gloss"],
+                    "relations": [],
+                    "entries": [],
+                }
                 concepts[cid] = concept
             # если текстовый вход имеет тип из списка для экспорта, он добавляется к понятию
             if row["synt_type"] in types:
-                entry = {k: row[k] for k in ("id", "name", "lemma", "synt_type", "meaning", "main_word", "poses")}
-                entry["part_of_speech"] = get_part_of_speech(entry["synt_type"], all_types)
+                entry = {
+                    k: row[k]
+                    for k in (
+                        "id",
+                        "name",
+                        "lemma",
+                        "synt_type",
+                        "meaning",
+                        "main_word",
+                        "poses",
+                    )
+                }
+                entry["part_of_speech"] = get_part_of_speech(
+                    entry["synt_type"], all_types
+                )
                 concepts[cid]["entries"].append(entry)
 
         print("{0} entries found.".format(cur.rowcount))
@@ -134,7 +156,16 @@ def transform_ruthes_to_ruwordnet():
         fields = ("id", "name", "definition", "part_of_speech")
         insert_synset_sql = make_insert_query("synsets", fields, cur)
 
-        fields = ("id", "synset_id", "name", "lemma", "synt_type", "meaning", "main_word", "poses")
+        fields = (
+            "id",
+            "synset_id",
+            "name",
+            "lemma",
+            "synt_type",
+            "meaning",
+            "main_word",
+            "poses",
+        )
         insert_sense_sql = make_insert_query("senses", fields, cur)
 
         count = len(concepts)
@@ -183,18 +214,28 @@ def transform_ruthes_to_ruwordnet():
                     cur.execute(insert_sense_sql, sense_data)
 
             if not ARGS.dry_run:
-                print("\rProgress: {0}% ({1})".format(round(i / count * 100), i), end="", flush=True)
+                print(
+                    "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
+                    end="",
+                    flush=True,
+                )
 
         print("\nProcessing relations...")
         i = 0
-        insert_relation_sql = make_insert_query("synset_relations", ("parent_id", "child_id", "name"), cur)
+        insert_relation_sql = make_insert_query(
+            "synset_relations", ("parent_id", "child_id", "name"), cur
+        )
         for cid, concept in concepts.items():
             i += 1
             # Частеречная синонимия
             for parent_pos, parent_uuid in concept["uuids"].items():
                 for child_pos, child_uuid in concept["uuids"].items():
                     if parent_pos != child_pos:
-                        relation_data = {"parent_id": parent_uuid, "child_id": child_uuid, "name": "POS-synonymy"}
+                        relation_data = {
+                            "parent_id": parent_uuid,
+                            "child_id": child_uuid,
+                            "name": "POS-synonymy",
+                        }
                         if ARGS.dry_run:
                             print(relation_data)
                         else:
@@ -212,7 +253,9 @@ def transform_ruthes_to_ruwordnet():
                     to_concept = concepts[relation["to_id"]]
                     # TODO Проверить — возможно это проверка лишняя
                     if pos in to_concept["uuids"]:
-                        relation_name = get_relation_name(relation["name"], relation["asp"], pos)
+                        relation_name = get_relation_name(
+                            relation["name"], relation["asp"], pos
+                        )
                         if relation_name is not None:
                             relation_data = {
                                 "parent_id": c_uuid,
@@ -224,7 +267,11 @@ def transform_ruthes_to_ruwordnet():
                             else:
                                 cur.execute(insert_relation_sql, relation_data)
             if not ARGS.dry_run:
-                print("\rProgress: {0}% ({1})".format(round(i / count * 100), i), end="", flush=True)
+                print(
+                    "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
+                    end="",
+                    flush=True,
+                )
         conn.commit()
         print()
 
@@ -258,11 +305,15 @@ def make_insert_query(table, fields, cur):
     dollars = ", ".join("$" + str(i + 1) for i in range(len(fields)))
     placeholders = ", ".join("%({0})s".format(f) for f in fields)
 
-    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
+    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(
+        placeholders=placeholders, table=table
+    )
 
     sql = "PREPARE prepared_query_{table} AS ".format(
         table=table
-    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(fields=fields_str, dollars=dollars, tbl=table)
+    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(
+        fields=fields_str, dollars=dollars, tbl=table
+    )
 
     cur.execute(sql)
     return sql_str
@@ -295,7 +346,10 @@ def fix_relation(concepts, relation, types, path=None) -> object:
             return [relation]
         # Отношение не подходит
         # Замыкание предусмотрено не для всех типов связей
-        if relation["name"] not in ["НИЖЕ", "ВЫШЕ"]:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
+        if relation["name"] not in [
+            "НИЖЕ",
+            "ВЫШЕ",
+        ]:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
             return []
         # Спускаемся ниже по иерархии
         relations = []

@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 
 from psycopg2 import connect
-import pprint
 
 revry_filename = "data/revry_filtered.txt"
 rubrics_filename = "data/rubrics_filtered.txt"
 
-dbconfig = {"database": "ruwordnet", "user": "ruwordnet", "password": "ruwordnet", "host": "127.0.0.1"}
+dbconfig = {
+    "database": "ruwordnet",
+    "user": "ruwordnet",
+    "password": "ruwordnet",
+    "host": "127.0.0.1",
+}
 
 rubrics = {}
 with open(rubrics_filename) as f:

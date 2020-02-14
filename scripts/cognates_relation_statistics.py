@@ -18,8 +18,12 @@ logging.basicConfig(level="INFO", format="%(word)-31s %(name)-4s %(seq)-3s %(mes
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 PREDEFINED_COGNATES_FILE = os.path.join(PKG_ROOT, "predefined_cognates.txt")
 
-parser = argparse.ArgumentParser(description="Extract derivation relations from RuThes and RuWordNet.")
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser = argparse.ArgumentParser(
+    description="Extract derivation relations from RuThes and RuWordNet."
+)
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -28,7 +32,10 @@ parser.add_argument(
     default=connection_string,
 )
 parser.add_argument(
-    "-t", "--test", help="Only show found relations, don't insert new relations in database", action="store_true"
+    "-t",
+    "--test",
+    help="Only show found relations, don't insert new relations in database",
+    action="store_true",
 )
 
 ARGS = parser.parse_args()
@@ -356,11 +363,15 @@ def make_insert_query(table, fields, cur):
     dollars = ", ".join("$" + str(i + 1) for i in range(len(fields)))
     placeholders = ", ".join("%({0})s".format(f) for f in fields)
 
-    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
+    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(
+        placeholders=placeholders, table=table
+    )
 
     sql = "PREPARE prepared_query_{table} AS ".format(
         table=table
-    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(fields=fields_str, dollars=dollars, tbl=table)
+    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(
+        fields=fields_str, dollars=dollars, tbl=table
+    )
 
     cur.execute(sql)
     return sql_str
@@ -415,7 +426,9 @@ def is_cognates(word1, word2):
 
 def check_substrings(word1, word2):
     match_len = min(len(word1), len(word2), 3)
-    logging.debug("words after processing: {} {}".format(word1[:match_len], word2[:match_len]))
+    logging.debug(
+        "words after processing: {} {}".format(word1[:match_len], word2[:match_len])
+    )
     if word1[:match_len] == word2[:match_len]:
         logging.debug("beginnings are equal")
         return True
@@ -470,7 +483,9 @@ def main():
         queue = JoinableQueue(workers_count * 10)
         for i in range(workers_count):
             worker = Worker()
-            worker.set(queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test)
+            worker.set(
+                queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test
+            )
             worker.daemon = True
             worker.start()
 
@@ -489,7 +504,13 @@ def main():
 
 
 class Worker(Process):
-    def set(self, queue: JoinableQueue, connection_string: str, logger: logging.Logger, is_test=False) -> None:
+    def set(
+        self,
+        queue: JoinableQueue,
+        connection_string: str,
+        logger: logging.Logger,
+        is_test=False,
+    ) -> None:
         self.queue = queue
         self.connection_string = connection_string
         self.logger = logger
@@ -534,7 +555,9 @@ class Worker(Process):
         e.counter = 0
         test = self.is_test
         cur2 = self.cursor
-        self.logger.info("{} ({})".format(row["name"], row["synset_name"]), extra=e(row["name"]))
+        self.logger.info(
+            "{} ({})".format(row["name"], row["synset_name"]), extra=e(row["name"])
+        )
 
         if not test:
             lexemes = []
@@ -545,10 +568,16 @@ class Worker(Process):
             "word": row["name"],
             "synset_name": row["synset_name"],
         }
-        cur2.execute("EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)", params)
+        cur2.execute(
+            "EXECUTE search_cognates(%(sense_id)s, %(synset_id)s, %(word)s, %(synset_name)s)",
+            params,
+        )
         for cognate in cur2:
             if is_cognates(row["name"], cognate["name"]):
-                self.logger.info("    " + cognate["name"] + ": " + cognate["rel_name"], extra=e(row["name"]))
+                self.logger.info(
+                    "    " + cognate["name"] + ": " + cognate["rel_name"],
+                    extra=e(row["name"]),
+                )
                 if not test:
                     lexemes.append((cognate["name"], cognate["synset_name"]))
 
@@ -560,7 +589,11 @@ class Worker(Process):
                 names = ["НИЖЕ", "ЧАСТЬ"]
                 tail_names = ["АСЦ", "АСЦ1", "АСЦ2"]
 
-            params = {"names": names, "tail_names": names + tail_names, "synset_name": row["synset_name"]}
+            params = {
+                "names": names,
+                "tail_names": names + tail_names,
+                "synset_name": row["synset_name"],
+            }
             cur2.execute(
                 """EXECUTE search_cognates_transitionally(
                     %(synset_name)s, %(names)s, %(tail_names)s)""",
@@ -568,21 +601,32 @@ class Worker(Process):
             )
             for senses_chain in cur2:
                 if is_cognates(row["name"], senses_chain["name"]):
-                    chain = build_chain(senses_chain["name_path"], senses_chain["relation_path"])
-                    self.logger.info("    " + senses_chain["name"] + ":" + chain, extra=e(row["name"]))
+                    chain = build_chain(
+                        senses_chain["name_path"], senses_chain["relation_path"]
+                    )
+                    self.logger.info(
+                        "    " + senses_chain["name"] + ":" + chain,
+                        extra=e(row["name"]),
+                    )
                     if not test:
-                        lexemes.append((senses_chain["name"], senses_chain["synset_name"]))
+                        lexemes.append(
+                            (senses_chain["name"], senses_chain["synset_name"])
+                        )
 
         if not test and lexemes:
             params = {"parent_id": row["id"], "name": "derived_from"}
             for lexeme in set(lexemes):
                 cur2.execute(
-                    "EXECUTE search_sense(%(name)s, %(synset_name)s)", {"name": lexeme[0], "synset_name": lexeme[1]}
+                    "EXECUTE search_sense(%(name)s, %(synset_name)s)",
+                    {"name": lexeme[0], "synset_name": lexeme[1]},
                 )
                 row_lexeme = cur2.fetchone()
                 if row_lexeme:
                     try:
-                        cur2.execute(self.insert_relation_sql, {"child_id": row_lexeme["id"], **params})
+                        cur2.execute(
+                            self.insert_relation_sql,
+                            {"child_id": row_lexeme["id"], **params},
+                        )
                     except IntegrityError:
                         # Если такое отношение уже есть, не останавливаем выполнение
                         pass

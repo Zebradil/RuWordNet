@@ -7,6 +7,10 @@ define runsql
 	PGPASSWORD=$(DB_PASS) psql -h $(DB_HOST) -U $(DB_USER) $(DB_NAME) < $(1)
 endef
 
+define runquery
+	PGPASSWORD=$(DB_PASS) psql -h $(DB_HOST) -U $(DB_USER) $(DB_NAME) -c $(1) -t > $(2)
+endef
+
 
 # RAW -> XML
 gen-ruthes: gen-ruthes-concepts gen-ruthes-textentries gen-ruthes-synonyms gen-ruthes-relations
@@ -105,3 +109,13 @@ import-syn-tabs:
 gen-ruwordnet-omw:
 	pipenv run python sql2xml/sql2rwn_omw_xml.py > rwn_omw.xml
 	tar -czvf rwn_omw-$$(date +%F).tgz rwn_omw.xml
+
+#####################################################33
+# MISC
+######
+
+comma:= , # This is needed to avoid splitting query into arguments
+export-roots-data:
+	$(call runquery,"SELECT word$(comma) ARRAY_AGG(root ORDER BY root) FROM roots WHERE quality='louk' GROUP BY word ORDER BY 2",'louk.roots_per_word.txt')
+	$(call runquery,"SELECT root$(comma) ARRAY_AGG(word) FROM roots WHERE quality='louk' GROUP BY root",'louk.words_per_root.txt')
+

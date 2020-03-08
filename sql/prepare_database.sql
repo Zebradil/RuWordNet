@@ -148,3 +148,12 @@ CREATE TABLE wn_mapping (
     PRIMARY KEY (wn30, wn31, kind)
 );
 CREATE INDEX wn_mapping_wn31 ON wn_mapping (wn31);
+
+CREATE TABLE roots (
+    word text NOT NULL,
+    root text NOT NULL,
+    index int NOT NULL,
+    quality text NOT NULL,
+    PRIMARY KEY (word, root, index, quality)
+);
+/* CREATE INDEX roots_word_root ON roots(word, root); */

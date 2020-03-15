@@ -1,3 +1,14 @@
+-- Functions
+
+CREATE OR REPLACE FUNCTION is_multiword(name text)
+RETURNS BOOL AS $$
+    BEGIN
+        RETURN array_length(regexp_split_to_array(name, '\s+'), 1) > 1;
+    END;
+$$ LANGUAGE PLPGSQL IMMUTABLE;
+
+
+
 -- RuThes tables
 
 CREATE TABLE concepts (
@@ -66,6 +77,8 @@ CREATE TABLE senses (
 
 CREATE INDEX ON senses (name);
 CREATE INDEX ON senses (lemma);
+CREATE INDEX senses_is_multiword ON senses (is_multiword(name));
+CREATE INDEX senses_words ON senses USING GIN (regexp_split_to_array(name, '\s+')) WHERE is_multiword(name);
 
 CREATE TABLE relation_types (
   name                  TEXT PRIMARY KEY,

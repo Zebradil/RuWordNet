@@ -79,27 +79,30 @@ def main():
         cur.execute(sql)
 
         for row in cur:
-            print("\nСлово {}".format(row["name"]), flush=True)
-
             cur2.execute(
                 "EXECUTE search_related_collocations(%(word)s)", {"word": row["name"]},
             )
-            rows = cur2.fetchall()
-            prev_synset_name = None
-            for row2 in rows:
-                if prev_synset_name is None or prev_synset_name != row2["synset_name2"]:
-                    prev_synset_name = row2["synset_name2"]
-                    print("\n  Синсет [{}]".format(row2["synset_name2"]))
-                print("    {} [{}]".format(row2["name"], row2["synset_name"]))
+            related_collocations = cur2.fetchall()
 
             cur2.execute(
                 "EXECUTE search_unrelated_collocations(%(word)s)",
                 {"word": row["name"]},
             )
-            rows = cur2.fetchall()
-            if rows:
+            unrelated_collocation = cur2.fetchall()
+
+            if related_collocations or unrelated_collocation:
+                print("\nСлово {}".format(row["name"]), flush=True)
+
+            prev_synset_name = None
+            for row2 in related_collocations:
+                if prev_synset_name is None or prev_synset_name != row2["synset_name2"]:
+                    prev_synset_name = row2["synset_name2"]
+                    print("\n  Синсет [{}]".format(row2["synset_name2"]))
+                print("    {} [{}]".format(row2["name"], row2["synset_name"]))
+
+            if unrelated_collocation:
                 print("\n  Без синсета")
-                for row2 in rows:
+                for row2 in unrelated_collocation:
                     print("    {} [{}]".format(row2["name"], row2["synset_name"]))
 
 

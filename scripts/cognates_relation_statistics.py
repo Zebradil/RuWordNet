@@ -489,7 +489,11 @@ def main():
         cur.execute(sql)
         for row in cur:
             dictionary_roots[row["word"]] = row["root"]
-        print(dictionary_roots)
+        print(
+            "Fetched {} words with {} roots".format(
+                len(dictionary_roots), len(set(dictionary_roots.values()))
+            )
+        )
 
         logging.debug("search non collocations")
         sql = r"""

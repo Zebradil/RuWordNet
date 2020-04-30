@@ -215,6 +215,7 @@ prefix_exceptions = (
     "ЗАВИСТ",
 )
 
+dictionary_roots = {}
 predefined_cognates = {}
 with open(PREDEFINED_COGNATES_FILE, "r") as f:
     for line in f:
@@ -410,6 +411,14 @@ def is_cognates(word1, word2):
         if word2 in predefined_cognates[word1]:
             logging.debug("from predefined list")
             return True
+    if (
+        word1 in dictionary_roots
+        and word2 in dictionary_roots
+        and dictionary_roots[word1] == dictionary_roots[word2]
+    ):
+        logging.debug("from dictionary")
+        print("from dictionary: {} {}".format(word1, word2))
+        return True
     words1 = remove_prefixes(word1)
     words2 = remove_prefixes(word2)
     for sub1 in words1:
@@ -460,8 +469,29 @@ def main():
     conn.autocommit = True
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+        logging.debug("prepare workers")
+        workers_count = cpu_count() - 1
+        queue = JoinableQueue(workers_count * 10)
+        for i in range(workers_count):
+            worker = Worker()
+            worker.set(
+                queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test
+            )
+            worker.daemon = True
+            worker.start()
 
-        logging.debug("search collocations")
+        logging.debug("retrieve roots dictionary")
+        sql = r"""
+          SELECT
+            UPPER(word) word,
+            UPPER(root) root
+          FROM roots"""
+        cur.execute(sql)
+        for row in cur:
+            dictionary_roots[row["word"]] = row["root"]
+        print(dictionary_roots)
+
+        logging.debug("search non collocations")
         sql = r"""
           SELECT
             se.id,
@@ -473,27 +503,16 @@ def main():
               ON sy.id = se.synset_id
           WHERE array_length(regexp_split_to_array(se.lemma, '\s+'), 1) = 1"""
         cur.execute(sql)
-
-        workers_count = cpu_count() - 1
-        queue = JoinableQueue(workers_count * 10)
-        for i in range(workers_count):
-            worker = Worker()
-            worker.set(
-                queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test
-            )
-            worker.daemon = True
-            worker.start()
-
-        logging.debug("start looping")
         rows = cur.fetchall()
+
         if logging.root.level > logging.DEBUG:
             rows = tqdm(rows, file=sys.stdout)
+
+        logging.debug("start looping")
         for row in rows:
             queue.put(row)
 
         queue.join()
-
-        # TODO shutdown workers?
 
     logging.debug("Done")
 

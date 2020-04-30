@@ -383,7 +383,7 @@ cached_results = {}
 
 def cache_result(func):
     def get_key_and_needle(word1, word2):
-        return word1, word2 if word1 > word2 else word2, word1
+        return (word1, word2) if word1 > word2 else (word2, word1)
 
     def cache_result_inner(word1, word2):
         key, needle = get_key_and_needle(word1, word2)

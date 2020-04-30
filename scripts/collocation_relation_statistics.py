@@ -700,15 +700,15 @@ def search_in_ruthes_bitransitionally(
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     chain = None
     relation_name = "ВЫВОД"
-    for name in ("ВЫШЕ", "НИЖЕ", "ЧАСТЬ", "ЦЕЛОЕ"):
-        if name == "ВЫШЕ":
-            tail_names = ["АСЦ", "ЧАСТЬ"]
-        elif name == "ЧАСТЬ":
-            tail_names = ["АСЦ"]
+    for i in range(2):
+        if i == 0:
+            names = ["ВЫШЕ", "ЦЕЛОЕ"]
+            tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
         else:
-            tail_names = [""]
+            names = ["НИЖЕ", "ЧАСТЬ"]
+            tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
 
-        params = {"word": word, "name": name, "tail_names": [name] + tail_names, "synset_name": synset_name}
+        params = {"word": word, "names": names, "tail_names": names + tail_names, "synset_name": synset_name}
         cur.execute(
             """EXECUTE select_bitransited_relation(
                 %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",

@@ -17,6 +17,7 @@ parser.add_argument(
     default=connection_string,
 )
 parser.add_argument("-t", "--test", help="Only show found relations, don't generate xml file", action="store_true")
+parser.add_argument("--without-matches", help="Print collocations without matched components to stdout", action="store_true")
 
 ARGS = parser.parse_args()
 
@@ -430,6 +431,7 @@ def make_insert_query(table, fields, cur):
 
 def main():
     test = ARGS.test
+    without_matches = ARGS.without_matches
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, conn.cursor(
         cursor_factory=extras.RealDictCursor
@@ -553,7 +555,7 @@ def main():
                             print(f"Лексема не найдена: {word} ({synset_name})", file=sys.stderr)
                         #     return
 
-            else:
+            elif without_matches:
                 counters["collocationsNoRelations"] += 1
                 print(flush=True)
                 print("{} ({}):".format(row["name"], row["synset_name"]))

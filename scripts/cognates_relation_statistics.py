@@ -402,7 +402,7 @@ def cache_result(func):
 
 @cache_result
 def is_cognates(word1, word2):
-    logging.debug("checking words: {} {}".format(word1, word2))
+    logging.debug("checking words: %s %s", word1, word2)
     if word1 == word2:
         logging.debug("same word")
         return False
@@ -415,23 +415,21 @@ def is_cognates(word1, word2):
     for sub1 in words1:
         for sub2 in words2:
             if check_substrings(sub1, sub2):
-                logging.debug("are cognates: {} {}".format(word1, word2))
+                logging.debug("are cognates: %s %s", word1, word2)
                 return True
-    logging.debug("aren't cognates: {} {}".format(word1, word2))
+    logging.debug("aren't cognates: %s %s", word1, word2)
     return False
 
 
 def check_substrings(word1, word2):
     match_len = min(len(word1), len(word2), 3)
-    logging.debug(
-        "words after processing: {} {}".format(word1[:match_len], word2[:match_len])
-    )
+    logging.debug("words after processing: %s %s", word1[:match_len], word2[:match_len])
     if word1[:match_len] == word2[:match_len]:
         logging.debug("beginnings are equal")
         return True
     for root in get_roots_group(word1):
         if word2.find(root) == 0:
-            logging.debug("root is found {}".format(root))
+            logging.debug("root is found %s", root)
             return True
     return False
 
@@ -553,7 +551,7 @@ class Worker(Process):
         test = self.is_test
         cur2 = self.cursor
         self.logger.info(
-            "{} ({})".format(row["name"], row["synset_name"]), extra=e(row["name"])
+            "%s (%s)", row["name"], row["synset_name"], extra=e(row["name"])
         )
 
         if not test:

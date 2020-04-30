@@ -8,8 +8,12 @@ from typing import List, Optional, Tuple
 from psycopg2 import IntegrityError, connect, extras
 from tqdm import tqdm
 
-parser = argparse.ArgumentParser(description="Extract collocation composition information from RuThes and RuWordNet.")
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser = argparse.ArgumentParser(
+    description="Extract collocation composition information from RuThes and RuWordNet."
+)
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -17,8 +21,17 @@ parser.add_argument(
     help="Postgresql database connection string ({})".format(connection_string),
     default=connection_string,
 )
-parser.add_argument("-t", "--test", help="Only show found relations, don't generate xml file", action="store_true")
-parser.add_argument("--without-matches", help="Print collocations without matched components to stdout", action="store_true")
+parser.add_argument(
+    "-t",
+    "--test",
+    help="Only show found relations, don't generate xml file",
+    action="store_true",
+)
+parser.add_argument(
+    "--without-matches",
+    help="Print collocations without matched components to stdout",
+    action="store_true",
+)
 
 ARGS = parser.parse_args()
 
@@ -420,11 +433,15 @@ def make_insert_query(table, fields, cur):
     dollars = ", ".join("$" + str(i + 1) for i in range(len(fields)))
     placeholders = ", ".join("%({0})s".format(f) for f in fields)
 
-    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(placeholders=placeholders, table=table)
+    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(
+        placeholders=placeholders, table=table
+    )
 
     sql = "PREPARE prepared_query_{table} AS ".format(
         table=table
-    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(fields=fields_str, dollars=dollars, tbl=table)
+    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(
+        fields=fields_str, dollars=dollars, tbl=table
+    )
 
     cur.execute(sql)
     return sql_str
@@ -454,7 +471,9 @@ def main():
         if not test:
             print("prepare_search_sense_query", flush=True)
             prepare_search_sense_query(cur2)
-            insert_relation_sql = make_insert_query("sense_relations", ("parent_id", "child_id", "name"), cur)
+            insert_relation_sql = make_insert_query(
+                "sense_relations", ("parent_id", "child_id", "name"), cur
+            )
 
         print("search collocations", flush=True)
         sql = r"""
@@ -550,12 +569,18 @@ def main():
                         row_lexeme = cur2.fetchone()
                         if row_lexeme:
                             try:
-                                cur2.execute(insert_relation_sql, {"child_id": row_lexeme["id"], **params})
+                                cur2.execute(
+                                    insert_relation_sql,
+                                    {"child_id": row_lexeme["id"], **params},
+                                )
                             except IntegrityError:
                                 # Бывают словосочетания, образованные из одного слова (МАТЬ → МАТЬ МАТЕРИ)
                                 pass
                         else:
-                            print(f"Лексема не найдена: {word} ({synset_name})", file=sys.stderr)
+                            print(
+                                f"Лексема не найдена: {word} ({synset_name})",
+                                file=sys.stderr,
+                            )
                         #     return
 
             elif without_matches:
@@ -568,7 +593,12 @@ def main():
                     params = {"synset_id": row["synset_id"]}
                     cur2.execute("EXECUTE select_rwn_relation(%(synset_id)s)", params)
                     for rel_row in cur2:
-                        print(" -- " + rel_row["rel_name"] + ": " + ", ".join(rel_row["senses"]))
+                        print(
+                            " -- "
+                            + rel_row["rel_name"]
+                            + ": "
+                            + ", ".join(rel_row["senses"])
+                        )
 
         print(flush=True)
         print("Словосочетаний: " + str(counters["collocations"]))
@@ -590,7 +620,11 @@ def main():
 
 
 def search_everywhere(
-    cur: extras.DictCursorBase, word: str, c_synset_id: str, c_synset_name: str, c_lemma: str
+    cur: extras.DictCursorBase,
+    word: str,
+    c_synset_id: str,
+    c_synset_name: str,
+    c_lemma: str,
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     synset_name, relation_name = search_in_rwn(cur, word, c_synset_id)
     if synset_name is not None:
@@ -600,7 +634,9 @@ def search_everywhere(
     if synset_name is not None:
         return synset_name, relation_name, relation_name
 
-    synset_name, relation_name, extra = search_in_ruthes_transitionally(cur, word, c_synset_name)
+    synset_name, relation_name, extra = search_in_ruthes_transitionally(
+        cur, word, c_synset_name
+    )
     if synset_name is not None:
         return synset_name, relation_name, extra
 
@@ -611,7 +647,9 @@ def search_everywhere(
     return None, None, None
 
 
-def search_in_rwn(cur: extras.DictCursorBase, word: str, synset_id: str) -> Tuple[Optional[str], Optional[str]]:
+def search_in_rwn(
+    cur: extras.DictCursorBase, word: str, synset_id: str
+) -> Tuple[Optional[str], Optional[str]]:
     params = {"word": word}
     cur.execute(
         """
@@ -671,7 +709,12 @@ def search_in_ruthes_transitionally(
             names = ["НИЖЕ", "ЧАСТЬ"]
             tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
 
-        params = {"word": word, "names": names, "tail_names": names + tail_names, "synset_name": synset_name}
+        params = {
+            "word": word,
+            "names": names,
+            "tail_names": names + tail_names,
+            "synset_name": synset_name,
+        }
         cur.execute(
             """EXECUTE select_transited_relation(
                 %(word)s, %(names)s, %(tail_names)s, %(synset_name)s)""",
@@ -679,7 +722,9 @@ def search_in_ruthes_transitionally(
         )
         senses_chain = cur.fetchone()
         if senses_chain is not None:
-            chain = print_chain(senses_chain["name_path"], senses_chain["relation_path"])
+            chain = print_chain(
+                senses_chain["name_path"], senses_chain["relation_path"]
+            )
             break
 
     return (
@@ -713,7 +758,12 @@ def search_in_ruthes_bitransitionally(
             names = ["НИЖЕ", "ЧАСТЬ"]
             tail_names = ["АСЦ", "АСЦ1", "АСЦ2", "ЧАСТЬ"]
 
-        params = {"word": word, "names": names, "tail_names": names + tail_names, "synset_name": synset_name}
+        params = {
+            "word": word,
+            "names": names,
+            "tail_names": names + tail_names,
+            "synset_name": synset_name,
+        }
         cur.execute(
             """EXECUTE select_bitransited_relation(
                 %(word)s, %(name)s, %(tail_names)s, %(synset_name)s)""",
@@ -734,7 +784,10 @@ def search_in_ruthes_bitransitionally(
 def print_extraction(data):
     print("\n      V\n".join([f"    {n}" for n in data["name_path"]]), file=sys.stderr)
     print("      A", file=sys.stderr)
-    print("\n      A\n".join(reversed([f"    {n}" for n in data["name_path1"][:-1]])), file=sys.stderr)
+    print(
+        "\n      A\n".join(reversed([f"    {n}" for n in data["name_path1"][:-1]])),
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

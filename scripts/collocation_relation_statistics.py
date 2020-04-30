@@ -599,7 +599,7 @@ def search_everywhere(
     if synset_name is not None:
         return synset_name, relation_name, extra
 
-    synset_name, relation_name, extra = search_in_ruthes_bitransitionally(cur, word, c_synset_name)
+    # synset_name, relation_name, extra = search_in_ruthes_bitransitionally(cur, word, c_synset_name)
     # if synset_name is not None:
     # return synset_name, relation_name, extra
 

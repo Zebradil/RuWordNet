@@ -717,15 +717,6 @@ def search_in_ruthes_bitransitionally(
         senses_chain = cur.fetchone()
         if senses_chain is not None:
             print_extraction(senses_chain)
-            chain = (
-                "("
-                + name
-                + ") "
-                + " → ".join(senses_chain["name_path"])
-                + " ("
-                + senses_chain["parent_relation_name"]
-                + ")"
-            )
             break
 
     return (

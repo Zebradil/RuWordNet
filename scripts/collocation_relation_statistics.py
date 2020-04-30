@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import List, Optional, Tuple
 
 from psycopg2 import IntegrityError, connect, extras
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="Extract collocation composition information from RuThes and RuWordNet.")
 connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -469,6 +470,8 @@ def main():
           WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1
           ORDER BY se.name"""
         cur.execute(sql)
+        # Fetch all right away to have total count of rows for tqdm progressbar
+        rows = cur.fetchall()
 
         counters = {
             "collocations": 0,
@@ -488,7 +491,7 @@ def main():
         #    4. in RuThes relations transitionally
 
         print("start looping")
-        for row in cur:
+        for row in tqdm(rows, file=sys.stdout):
             print(flush=True, file=sys.stderr)
             print("{} ({}):".format(row["name"], row["synset_name"]), file=sys.stderr)
             counters["collocations"] += 1

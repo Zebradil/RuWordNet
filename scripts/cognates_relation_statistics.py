@@ -416,8 +416,7 @@ def is_cognates(word1, word2):
         and word2 in dictionary_roots
         and dictionary_roots[word1] == dictionary_roots[word2]
     ):
-        logging.debug("from dictionary")
-        print("from dictionary: {} {}".format(word1, word2))
+        logging.debug("from dictionary: %s %s", word1, word2)
         return True
     words1 = remove_prefixes(word1)
     words2 = remove_prefixes(word2)
@@ -489,10 +488,10 @@ def main():
         cur.execute(sql)
         for row in cur:
             dictionary_roots[row["word"]] = row["root"]
-        print(
-            "Fetched {} words with {} roots".format(
-                len(dictionary_roots), len(set(dictionary_roots.values()))
-            )
+        logging.info(
+            "Fetched %s words with %s roots",
+            len(dictionary_roots),
+            len(set(dictionary_roots.values())),
         )
 
         logging.debug("search non collocations")

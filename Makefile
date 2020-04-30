@@ -89,10 +89,12 @@ import-cause-entailment:
 gen-ruwordnet-relations: gen-derived-from gen-composed-of
 
 gen-derived-from:
-	pipenv run python scripts/cognates_relation_statistics.py
+	@echo 'Fetch logs from derived_from.out.log'
+	pipenv run python scripts/cognates_relation_statistics.py 2> derived_from.out.log
 
 gen-composed-of:
-	pipenv run python scripts/collocation_relation_statistics.py
+	@echo 'Fetch logs from composed_of.out.log'
+	pipenv run python scripts/collocation_relation_statistics.py 2> composed_of.out.log
 
 
 # UPDATE WEBSITE

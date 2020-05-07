@@ -6,10 +6,16 @@ import re
 
 from psycopg2 import connect, extras
 
-parser = argparse.ArgumentParser(description="Import cause or entailment relations to RuWordNet database.")
+parser = argparse.ArgumentParser(
+    description="Import cause or entailment relations to RuWordNet database."
+)
 parser.add_argument("-s", "--source-file", type=str, help="Source csv file")
-parser.add_argument("--name", type=str, help="Relation name", choices=["cause", "entailment"])
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+parser.add_argument(
+    "--name", type=str, help="Relation name", choices=["cause", "entailment"]
+)
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -27,12 +33,14 @@ if not os.path.isfile(filename):
     exit()
 
 conn = connect(ARGS.connection_string)
-with open(filename) as file, conn.cursor(cursor_factory=extras.DictCursor) as dict_cur, conn.cursor(
+with open(filename) as file, conn.cursor(
     cursor_factory=extras.DictCursor
-) as cur:
+) as dict_cur, conn.cursor(cursor_factory=extras.DictCursor) as cur:
     prepare = (
         "PREPARE insert_relations AS "
-        "INSERT INTO synset_relations (parent_id, child_id, name) VALUES ($1, $2, '" + ARGS.name + "')"
+        "INSERT INTO synset_relations (parent_id, child_id, name) VALUES ($1, $2, '"
+        + ARGS.name
+        + "')"
     )
     dict_cur.execute(prepare)
 
@@ -109,7 +117,9 @@ FROM (
 
         senses_b = list(sense.strip() for sense in senses_match.group(1).split(";"))
 
-        dict_cur.execute(find_synset_sql, (senses_a, len(senses_a), senses_b, len(senses_b)))
+        dict_cur.execute(
+            find_synset_sql, (senses_a, len(senses_a), senses_b, len(senses_b))
+        )
 
         rows = dict_cur.fetchall()
         if not rows:
@@ -119,7 +129,9 @@ FROM (
         for row in rows:
             values = {"parent_id": row["a"], "child_id": row["b"]}
             try:
-                cur.execute("EXECUTE insert_relations (%(parent_id)s, %(child_id)s)", values)
+                cur.execute(
+                    "EXECUTE insert_relations (%(parent_id)s, %(child_id)s)", values
+                )
                 # print("Insert", row)
             except:
                 pass

@@ -10,13 +10,20 @@ OUT_ROOT = os.path.join(PKG_ROOT, "out")
 
 conn = None
 
-dbconfig = {"database": "ruthes", "user": "ruwordnet", "password": "ruwordnet", "host": "127.0.0.1"}
+dbconfig = {
+    "database": "ruthes",
+    "user": "ruwordnet",
+    "password": "ruwordnet",
+    "host": "127.0.0.1",
+}
 
 
 def main(argv):
     global OUT_ROOT, conn
 
-    help_str = "Usage: {0} [-h] [--out-dir=<output_directory>]".format(os.path.split(__file__)[1])
+    help_str = "Usage: {0} [-h] [--out-dir=<output_directory>]".format(
+        os.path.split(__file__)[1]
+    )
     try:
         opts, args = getopt.getopt(argv, "h", ["out-dir="])
     except getopt.GetoptError:
@@ -75,7 +82,9 @@ def generate_lex_file(pos):
 
     print("Output file: " + filename)
 
-    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, open(filename, "w", encoding="utf-8") as file:
+    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur, open(
+        filename, "w", encoding="utf-8"
+    ) as file:
 
         print("Finding entries...")
 
@@ -130,10 +139,14 @@ def generate_lex_file(pos):
                     "all_entries": [],
                 }
                 concepts[cid] = concept
-            concepts[cid]["all_entries"].append({k: row[k] for k in ("id", "name", "synt_type")})
+            concepts[cid]["all_entries"].append(
+                {k: row[k] for k in ("id", "name", "synt_type")}
+            )
             # Фильтруем текстовые входы, оставляя только определённую часть речи
             if row["synt_type"] in types:
-                concepts[cid]["entries"].append({k: row[k] for k in ("id", "name", "synt_type")})
+                concepts[cid]["entries"].append(
+                    {k: row[k] for k in ("id", "name", "synt_type")}
+                )
 
         print("{0} entries found. {1} are empty.".format(cur.rowcount, empty_cnt))
 
@@ -162,13 +175,17 @@ def generate_lex_file(pos):
         for cid, concept in concepts.items():
             i += 1
 
-            concept["entries"] = [entry for entry in concept["entries"] if entry["id"] is not None]
+            concept["entries"] = [
+                entry for entry in concept["entries"] if entry["id"] is not None
+            ]
 
             # Если у понятия нет текстовых входов необходимой части речи, пропускаем его.
             if len(concept["entries"]) == 0:
                 continue
 
-            gloss = concept["name"] + (" | " + xstr(concept["gloss"]) if concept["gloss"] is not None else "")
+            gloss = concept["name"] + (
+                " | " + xstr(concept["gloss"]) if concept["gloss"] is not None else ""
+            )
             gloss = rgxSpace.sub("_", gloss)
 
             relations = []
@@ -187,7 +204,9 @@ def generate_lex_file(pos):
 
             # Отдельно добавляем указатели для словообразовательных отношений
             if derivational_types:
-                pointers += gen_derivational_pointers(derivational_types, concept, d_file)
+                pointers += gen_derivational_pointers(
+                    derivational_types, concept, d_file
+                )
             else:
                 for entry in concept["all_entries"]:
                     est = entry["synt_type"]
@@ -202,9 +221,15 @@ def generate_lex_file(pos):
                     pointers += ["{0}:{1},{2}".format(d_file, entry["name"], ptr_chr)]
 
             words = [entry["name"] for entry in concept["entries"]]
-            synset = synset_tpl.format(words=",".join(words), pointers=" ".join(pointers), gloss=gloss)
+            synset = synset_tpl.format(
+                words=",".join(words), pointers=" ".join(pointers), gloss=gloss
+            )
             file.write(synset + "\n")
-            print("\rProgress: {0}% ({1})".format(round(i / count * 100), i), end="", flush=True)
+            print(
+                "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
+                end="",
+                flush=True,
+            )
         print()
 
 
@@ -260,7 +285,10 @@ def fix_relation(concepts, relation, path=None) -> object:
             return [relation]
         # Отношение не подходит
         # Замыкание предусмотрено не для всех типов связей
-        if relation["name"] not in ["НИЖЕ", "ВЫШЕ"]:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
+        if relation["name"] not in [
+            "НИЖЕ",
+            "ВЫШЕ",
+        ]:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
             return []
         # Спускаемся ниже по иерархии
         relations = []
@@ -321,7 +349,10 @@ def get_pointer(rel_type, asp, pos):
 
 
 def get_pointer_word(entries):
-    return next((entry["name"] for entry in entries if entry["id"] is not None), entries[0]["name"])
+    return next(
+        (entry["name"] for entry in entries if entry["id"] is not None),
+        entries[0]["name"],
+    )
 
 
 def xstr(s):

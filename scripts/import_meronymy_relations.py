@@ -18,9 +18,13 @@ from psycopg2 import connect
 # asp = 'classical_meronymy'
 # relation_name = 'ЧАСТЬ'
 
-parser = argparse.ArgumentParser(description="Import meronymy relations to RuThes database.")
+parser = argparse.ArgumentParser(
+    description="Import meronymy relations to RuThes database."
+)
 parser.add_argument("-s", "--source-file", type=str, help="Source csv file")
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -28,9 +32,14 @@ parser.add_argument(
     help="Postgresql database connection string ({})".format(connection_string),
     default=connection_string,
 )
-parser.add_argument("--type", type=str, help="Relation type", choices=["ЦЕЛОЕ", "ЧАСТЬ"])
 parser.add_argument(
-    "--sub-type", type=str, help="Relation sub-type", choices=["add_part", "process_steps", "classical_meronymy"]
+    "--type", type=str, help="Relation type", choices=["ЦЕЛОЕ", "ЧАСТЬ"]
+)
+parser.add_argument(
+    "--sub-type",
+    type=str,
+    help="Relation sub-type",
+    choices=["add_part", "process_steps", "classical_meronymy"],
 )
 
 ARGS = parser.parse_args()
@@ -54,7 +63,11 @@ with open(filename) as file, conn.cursor() as cur:
     )
     cur.execute(prepare)
 
-    prepare = "PREPARE insert_relation AS " "INSERT INTO relations (from_id, to_id, name, asp)" "VALUES ($1, $2, $3, $4)"
+    prepare = (
+        "PREPARE insert_relation AS "
+        "INSERT INTO relations (from_id, to_id, name, asp)"
+        "VALUES ($1, $2, $3, $4)"
+    )
     cur.execute(prepare)
 
     pattern = re.compile("^(\d+)[^\d]+(\d+)[^\d]+$")
@@ -65,14 +78,25 @@ with open(filename) as file, conn.cursor() as cur:
         if match_obj is None:
             print("NOT MATCH: ", line)
             continue
-        values = {"from_id": match_obj.group(1), "to_id": match_obj.group(2), "name": relation_name, "asp": asp}
+        values = {
+            "from_id": match_obj.group(1),
+            "to_id": match_obj.group(2),
+            "name": relation_name,
+            "asp": asp,
+        }
 
         try:
-            cur.execute("EXECUTE insert_relation (%(from_id)s, %(to_id)s, %(name)s, %(asp)s)", values)
+            cur.execute(
+                "EXECUTE insert_relation (%(from_id)s, %(to_id)s, %(name)s, %(asp)s)",
+                values,
+            )
             print("Insert", line)
         except:
             conn.commit()
-            cur.execute("EXECUTE update_relation (%(from_id)s, %(to_id)s, %(name)s, %(asp)s)", values)
+            cur.execute(
+                "EXECUTE update_relation (%(from_id)s, %(to_id)s, %(name)s, %(asp)s)",
+                values,
+            )
             print("Update", line)
         finally:
             conn.commit()

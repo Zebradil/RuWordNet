@@ -5,9 +5,13 @@ import re
 
 from psycopg2 import connect
 
-parser = argparse.ArgumentParser(description="Import antonymy relations to RuThes database.")
+parser = argparse.ArgumentParser(
+    description="Import antonymy relations to RuThes database."
+)
 parser.add_argument("-s", "--source-file", type=str, help="Source csv file")
-connection_string = "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+connection_string = (
+    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+)
 parser.add_argument(
     "-c",
     "--connection-string",
@@ -32,7 +36,9 @@ conn = connect(ARGS.connection_string)
 with open(filename) as file, conn.cursor() as cur:
     prepare = (
         "PREPARE insert_relations AS "
-        "INSERT INTO relations (from_id, to_id, name) VALUES ($1, $2, '" + relation_name + "')"
+        "INSERT INTO relations (from_id, to_id, name) VALUES ($1, $2, '"
+        + relation_name
+        + "')"
     )
     if reversible:
         prepare += ", ($2, $1, '" + reverse_relation_name + "')"

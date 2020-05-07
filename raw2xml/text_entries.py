@@ -8,9 +8,15 @@ from lxml import etree
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-parser = argparse.ArgumentParser(description="Generates RuThes text_entry.xml file from txt data file.")
+parser = argparse.ArgumentParser(
+    description="Generates RuThes text_entry.xml file from txt data file."
+)
 parser.add_argument(
-    "-s", "--source-file", type=str, help="Source txt file", default=os.path.join(PKG_ROOT, "data", "textentries.txt")
+    "-s",
+    "--source-file",
+    type=str,
+    help="Source txt file",
+    default=os.path.join(PKG_ROOT, "data", "textentries.txt"),
 )
 parser.add_argument(
     "-d",
@@ -29,7 +35,13 @@ def main():
     filename = ARGS.source_file
 
     word_chars = '[А-Яа-я\d\w\-",\(\)\./]'
-    pp = "(\d+)\s+((?:\s{0,2}" + word_chars + ")+)\s+(?:10|20)\s+((?:\s{0,2}" + word_chars + ")+)"
+    pp = (
+        "(\d+)\s+((?:\s{0,2}"
+        + word_chars
+        + ")+)\s+(?:10|20)\s+((?:\s{0,2}"
+        + word_chars
+        + ")+)"
+    )
     pattern0 = re.compile(pp)
     pp += "\s+([A-Za-z]+)"
     pattern1 = re.compile(pp)

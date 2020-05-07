@@ -8,9 +8,15 @@ from lxml import etree
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-parser = argparse.ArgumentParser(description="Generates RuThes relations.xml file from txt data file.")
+parser = argparse.ArgumentParser(
+    description="Generates RuThes relations.xml file from txt data file."
+)
 parser.add_argument(
-    "-s", "--source-file", type=str, help="Source txt file", default=os.path.join(PKG_ROOT, "data", "relats.txt")
+    "-s",
+    "--source-file",
+    type=str,
+    help="Source txt file",
+    default=os.path.join(PKG_ROOT, "data", "relats.txt"),
 )
 parser.add_argument(
     "-d",

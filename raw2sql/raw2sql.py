@@ -7,7 +7,12 @@ from psycopg2 import connect
 conn = None
 cur = None
 
-dbconfig = {"database": "ruthes", "user": "ruwordnet", "password": "ruwordnet", "host": "127.0.0.1"}
+dbconfig = {
+    "database": "ruthes",
+    "user": "ruwordnet",
+    "password": "ruwordnet",
+    "host": "127.0.0.1",
+}
 
 
 def main():
@@ -23,7 +28,13 @@ def main():
     filename = "/Users/german/tmp/ruthes/textentr_pos_edited.txt"
 
     word_chars = '[А-Яа-я\d\w\-",\(\)\./]'
-    pp = "(\d+)\s+((?:\s{0,2}" + word_chars + ")+)\s+(?:10|20)\s+((?:\s{0,2}" + word_chars + ")+)"
+    pp = (
+        "(\d+)\s+((?:\s{0,2}"
+        + word_chars
+        + ")+)\s+(?:10|20)\s+((?:\s{0,2}"
+        + word_chars
+        + ")+)"
+    )
     pattern0 = re.compile(pp)
     pp += "\s+([A-Za-z]+)"
     pattern1 = re.compile(pp)
@@ -60,7 +71,10 @@ def main():
 def insert_data(elements):
     print(elements)
     sql_str = "EXECUTE insert_entry (%(id)s, %(name)s, %(lemma)s, %(synt_type)s, %(main_word)s, %(pos)s)"
-    values = {k: re.sub(r"\s+", " ", val.strip()) if isinstance(val, str) else val for k, val in elements.items()}
+    values = {
+        k: re.sub(r"\s+", " ", val.strip()) if isinstance(val, str) else val
+        for k, val in elements.items()
+    }
     cur.execute(sql_str, values)
     conn.commit()
 

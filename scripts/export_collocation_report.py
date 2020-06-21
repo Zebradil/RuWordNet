@@ -27,6 +27,7 @@ def main():
         cursor_factory=extras.RealDictCursor
     ) as cur2:
 
+        # Search senses which participate in "composed_of" relations with a given sense/word
         sql = r"""
         PREPARE search_related_collocations AS
           SELECT
@@ -48,6 +49,7 @@ def main():
         """
         cur.execute(sql)
 
+        # Search senses which contain a given word and do not participate in "composed_of" relations with the given word
         sql = r"""
         PREPARE search_unrelated_collocations AS
           SELECT

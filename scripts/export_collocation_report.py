@@ -32,20 +32,15 @@ def main():
         PREPARE search_related_collocations AS
           SELECT
             se.name,
-            sy.name synset_name,
-            sy2.name synset_name2
+            sy.name synset_name
           FROM senses se
             INNER JOIN synsets sy
               ON sy.id = se.synset_id
             INNER JOIN sense_relations sr
               ON sr.parent_id = se.id
                 AND sr.name = 'composed_of'
-            INNER JOIN senses se2
-              ON se2.id = sr.child_id
-            INNER JOIN synsets sy2
-              ON sy2.id = se2.synset_id
-          WHERE se2.name = $1
-          ORDER BY se2.name
+                AND sr.child_id = $1
+          ORDER BY se.name
         """
         cur.execute(sql)
 
@@ -74,17 +69,33 @@ def main():
         cur.execute(sql)
 
         sql = r"""
-          SELECT DISTINCT name
+        PREPARE get_synset_name AS
+          SELECT
+            sy.name
+          FROM senses se
+            INNER JOIN synsets sy
+              ON sy.id = se.synset_id
+          WHERE se.id = $1
+        """
+        cur.execute(sql)
+
+        sql = r"""
+          SELECT name, array_agg(id::text) ids
           FROM senses
           WHERE NOT is_multiword(name)
+          GROUP BY name
           ORDER BY name"""
         cur.execute(sql)
 
         for row in cur:
-            cur2.execute(
-                "EXECUTE search_related_collocations(%(word)s)", {"word": row["name"]},
-            )
-            related_collocations = cur2.fetchall()
+            related_collocations = {}
+            for sid in row["ids"]:
+                cur2.execute(
+                    "EXECUTE search_related_collocations(%(id)s)", {"id": sid},
+                )
+                tmp = cur2.fetchall()
+                if tmp:
+                    related_collocations[sid] = tmp
 
             cur2.execute(
                 "EXECUTE search_unrelated_collocations(%(word)s)",
@@ -97,12 +108,11 @@ def main():
             else:
                 print("\nСлово {} *".format(row["name"]), flush=True)
 
-            prev_synset_name = None
-            for row2 in related_collocations:
-                if prev_synset_name is None or prev_synset_name != row2["synset_name2"]:
-                    prev_synset_name = row2["synset_name2"]
-                    print("\n  Синсет [{}]".format(row2["synset_name2"]))
-                print("    {} [{}]".format(row2["name"], row2["synset_name"]))
+            for sid in row["ids"]:
+                cur2.execute("EXECUTE get_synset_name(%(sense_id)s)", {"sense_id": sid})
+                print("\n  Синсет [{}]".format(cur2.fetchone()["name"]))
+                for row2 in related_collocations.get(sid, []):
+                    print("    {} [{}]".format(row2["name"], row2["synset_name"]))
 
             if unrelated_collocation:
                 print("\n  Без синсета")

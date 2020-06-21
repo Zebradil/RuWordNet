@@ -92,6 +92,8 @@ def main():
 
             if related_collocations or unrelated_collocation:
                 print("\nСлово {}".format(row["name"]), flush=True)
+            else:
+                print("\nСлово {} *".format(row["name"]), flush=True)
 
             prev_synset_name = None
             for row2 in related_collocations:

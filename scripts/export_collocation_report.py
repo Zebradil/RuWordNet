@@ -106,12 +106,17 @@ def main():
             if related_collocations or unrelated_collocation:
                 print("\nСлово {}".format(row["name"]), flush=True)
             else:
-                print("\nСлово {} *".format(row["name"]), flush=True)
+                continue
 
             for sid in row["ids"]:
+                collocations = related_collocations.get(sid, [])
                 cur2.execute("EXECUTE get_synset_name(%(sense_id)s)", {"sense_id": sid})
-                print("\n  Синсет [{}]".format(cur2.fetchone()["name"]))
-                for row2 in related_collocations.get(sid, []):
+                print(
+                    "\n  Синсет [{}]{}".format(
+                        cur2.fetchone()["name"], "" if collocations else " *"
+                    )
+                )
+                for row2 in collocations:
                     print("    {} [{}]".format(row2["name"], row2["synset_name"]))
 
             if unrelated_collocation:

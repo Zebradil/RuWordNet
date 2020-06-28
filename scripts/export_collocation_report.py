@@ -32,7 +32,8 @@ def main():
         PREPARE search_related_collocations AS
           SELECT
             se.name,
-            sy.name synset_name
+            sy.name synset_name,
+            sr.info
           FROM senses se
             INNER JOIN synsets sy
               ON sy.id = se.synset_id
@@ -40,6 +41,7 @@ def main():
               ON sr.parent_id = se.id
                 AND sr.name = 'composed_of'
                 AND sr.child_id = $1
+                AND sr.info != 'deleted'
           ORDER BY se.name
         """
         cur.execute(sql)
@@ -56,6 +58,7 @@ def main():
             LEFT JOIN sense_relations sr
               ON sr.parent_id = se.id
                 AND sr.name = 'composed_of'
+                AND sr.info != 'deleted'
                 AND sr.child_id IN(
                   SELECT id
                   FROM senses
@@ -117,7 +120,13 @@ def main():
                     )
                 )
                 for row2 in collocations:
-                    print("    {} [{}]".format(row2["name"], row2["synset_name"]))
+                    print(
+                        "    {} [{}]{}".format(
+                            row2["name"],
+                            row2["synset_name"],
+                            " +" if row2["info"] == "manual" else "",
+                        )
+                    )
 
             if unrelated_collocation:
                 print("\n  Без синсета")

@@ -275,8 +275,9 @@ def run(connection):
             FROM synsets sy
               JOIN concepts c ON c.name = sy.name
               LEFT JOIN ili ON ili.concept_id = c.id
-              LEFT JOIN ili_map_wn30 map
-                ON (
+              LEFT JOIN ili_map_wn map
+                ON map.version = 30
+                AND (
                   map.wn = ili.wn_id
                   OR substring(map.wn, '^\d+') = substring(ili.wn_id, '^\d+')
                   AND ARRAY[substring(map.wn, '.$'), substring(ili.wn_id, '.$')] @> ARRAY['a', 's']

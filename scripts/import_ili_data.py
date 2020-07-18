@@ -40,7 +40,7 @@ with open(ARGS.file) as file, conn.cursor() as cur:
         }
 
         if ARGS.dry_run:
-            logging.info(f"DRY-RUN: insert values {values}")
+            logging.info("DRY-RUN: insert values %s", values)
         else:
             try:
                 cur.execute(
@@ -54,5 +54,5 @@ with open(ARGS.file) as file, conn.cursor() as cur:
                 logging.error(e)
                 conn.rollback()
                 skipped_lines += 1
-logging.info(f"Inserted: {inserted_lines}")
-logging.info(f"Skipped: {skipped_lines}")
+logging.info("Inserted: %s", inserted_lines)
+logging.info("Skipped: %s", skipped_lines)

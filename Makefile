@@ -112,7 +112,7 @@ gen-ruwordnet-omw:
 	pipenv run python sql2xml/sql2rwn_omw_xml.py > rwn_omw.xml
 	tar -czvf rwn_omw-$$(date +%F).tgz rwn_omw.xml
 
-#####################################################33
+#####################################################
 # MISC
 ######
 

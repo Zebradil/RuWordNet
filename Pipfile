@@ -8,6 +8,8 @@ name = "pypi"
 lxml = "*"
 argparse = "*"
 tqdm = "*"
+nltk = "*"
+numpy = "*"
 
 [dev-packages]
 pylint = "*"

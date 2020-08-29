@@ -44,9 +44,9 @@ conn.autocommit = True
 def main():
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
         word_re = re.compile(r"^Слово (.*)$")
-        synset_re = re.compile(r"^Синсет \[(.*)\]$")
+        synset_re = re.compile(r"^Синсет \[(.*)\]( \*)?$")
         no_synset_re = re.compile(r"^Без синсета$")
-        collocation_re = re.compile(r"^(.*) \[(.*)\]$")
+        collocation_re = re.compile(r"^(.*) \[(.*)\]( \+)?$")
 
         sql = r"""
         PREPARE get_sense_id AS

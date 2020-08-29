@@ -1,5 +1,6 @@
 .mypy_cache
 .idea
+.venv
 *.swp
 *.log
 .DS_Store
@@ -15,6 +16,8 @@ raw2xml/out/*
 *.tar.gz
 *.tgz
 /*.sql
+/*.csv
+/*.xml
 *.tsv
 /data/*
 /out/*

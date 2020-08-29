@@ -27,6 +27,12 @@ parser.add_argument(
     help="Postgresql database connection string ({})".format(connection_string),
     default=connection_string,
 )
+parser.add_argument(
+    "-t",
+    "--test",
+    help="Only show found relations, don't insert new relations in database",
+    action="store_true",
+)
 parser.add_argument("file", type=argparse.FileType("r"))
 
 ARGS = parser.parse_args()
@@ -104,10 +110,11 @@ def main():
                 else:
                     collocation_id = get_sense_id(res.group(1), res.group(2), n)
                     try:
-                        cur.execute(
-                            "EXECUTE add_composed_of_relation(%(parent_id)s, %(child_id)s)",
-                            {"parent_id": collocation_id, "child_id": sense_id},
-                        )
+                        if not ARGS.test:
+                            cur.execute(
+                                "EXECUTE add_composed_of_relation(%(parent_id)s, %(child_id)s)",
+                                {"parent_id": collocation_id, "child_id": sense_id},
+                            )
                         print(f"New: [{n}] {sense_name} [{synset_name}] : {line}")
                     except IntegrityError:
                         pass

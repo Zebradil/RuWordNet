@@ -3,6 +3,7 @@
 import argparse
 import csv
 import os
+import sys
 
 from psycopg2 import IntegrityError, connect
 
@@ -34,7 +35,7 @@ relation_name_to_replace = None
 
 if not os.path.isfile(filename):
     print("File not exists")
-    exit()
+    sys.exit()
 
 conn = connect(ARGS.connection_string)
 with open(filename) as csvfile, conn.cursor() as cur:

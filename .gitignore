@@ -21,3 +21,4 @@ raw2xml/out/*
 *.tsv
 /data/*
 /out/*
+.venv

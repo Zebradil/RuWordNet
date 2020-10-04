@@ -2,8 +2,10 @@
 
 import argparse
 import os
+from collections import defaultdict
 
 from lxml import etree
+from nltk.corpus import wordnet as wn
 from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -50,6 +52,7 @@ class Generator:
         self.synsets = []
         self.senses = []
         self.synset_relations = []
+        self.ili = []
 
     def run(self):
         print("Start")
@@ -115,8 +118,13 @@ class Generator:
                 relation["child_id"] = synsets_by_id[relation["child_id"]]["index"]
                 synset["relations"].append(relation)
 
-            current_pos = None
             print("building trees...")
+
+            current_pos = None
+            synsets_root = None
+            senses_root = None
+            synset_relations_root = None
+
             i = 0
             count = len(self.synsets)
             for synset in self.synsets:
@@ -152,6 +160,7 @@ class Generator:
             print()
             self.generate_composed_of_relations_file(cur)
             self.generate_derived_from_relations_file(cur)
+            self.generate_ili_file(cur)
 
         print("Done")
 
@@ -240,6 +249,76 @@ class Generator:
 
     def generate_composed_of_relations_file(self, cur):
         self.generate_sense_relations_file("composed_of", cur)
+
+    def generate_ili_file(self, cur):
+        print("Generating ILI file")
+
+        synsets_by_concept_id = defaultdict(list)
+        for synset in self.synsets:
+            synsets_by_concept_id[synset["concept_id"]].append(synset)
+
+        cur.execute(
+            """
+            SELECT concept_id, array_agg(wn_id) wn_ids
+            FROM (
+              SELECT concept_id, wn_id
+              FROM ili
+              WHERE source = 'auto verified'
+              UNION
+              SELECT concept_id, m.wn30
+              FROM ili
+                JOIN wn_mapping m ON m.wn31 = ili.wn_id
+              WHERE source = 'manual'
+            ) t
+            GROUP BY concept_id
+            """
+        )
+        ili = cur.fetchall()
+
+        root = etree.Element("ili")
+        for row in ili:
+            wn_synsets = defaultdict(list)
+            for wn_synset in [self.get_wn_synset(wn_id) for wn_id in row["wn_ids"]]:
+                pos = wn_synset.pos()
+                wn_synsets["a" if pos == "s" else pos].append(wn_synset)
+
+            for rwn_synset in synsets_by_concept_id[row["concept_id"]]:
+                x_match = etree.SubElement(root, "match")
+
+                x_rwn_synset = etree.SubElement(x_match, "rwn-synset")
+                x_rwn_synset.set("id", rwn_synset["index"])
+                x_rwn_synset.set("ruthes_name", rwn_synset["name"])
+                x_rwn_synset.set("definition", xstr(rwn_synset["definition"]))
+                x_rwn_synset.set("part_of_speech", rwn_synset["part_of_speech"])
+
+                for sense_id in rwn_synset["senses"]:
+                    self.add_sense(x_rwn_synset, self.get_sense(sense_id))
+
+                pos = rwn_synset["part_of_speech"]
+                for wn_synset in wn_synsets.get(
+                    "a" if pos == "Adj" else pos.lower(), []
+                ):
+                    x_wn_synset = etree.SubElement(x_match, "wn-synset")
+                    x_wn_synset.set(
+                        "id", str(wn_synset.offset()).zfill(8) + "-" + wn_synset.pos()
+                    )
+                    x_wn_synset.set("definition", wn_synset.definition())
+                    for lemma in wn_synset.lemmas():
+                        x_lemma = etree.SubElement(x_wn_synset, "lemma")
+                        x_lemma.set("name", lemma.name())
+                        x_lemma.set("key", lemma.key())
+
+        tree = etree.ElementTree(root)
+        filename = os.path.join(self.out_dir, "ili.xml")
+        if os.path.isfile(filename):
+            os.remove(filename)
+        print("Output file: " + filename)
+        tree.write(filename, encoding="utf-8", pretty_print=True)
+
+    @staticmethod
+    def get_wn_synset(wn_id: str):
+        parts = wn_id.split("-")
+        return wn.synset_from_pos_and_offset(parts[1], int(parts[0]))
 
 
 def xstr(value):

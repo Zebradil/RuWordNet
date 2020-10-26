@@ -170,3 +170,12 @@ CREATE TABLE roots (
     PRIMARY KEY (word, root, index, quality)
 );
 /* CREATE INDEX roots_word_root ON roots(word, root); */
+
+CREATE TABLE wn_data (
+    id text NOT NULL,
+    name text NOT NULL,
+    definition text NOT NULL,
+    lemma_names json NOT NULL,
+    version int NOT NULL,
+    PRIMARY KEY (id)
+);

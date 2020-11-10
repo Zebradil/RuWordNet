@@ -129,6 +129,20 @@ INSERT INTO relation_types (name, reverse_relation_name, parent_name) VALUES
   ('composed_of', NULL, NULL),
   ('POS-synonymy', 'POS-synonymy', NULL);
 
+CREATE OR REPLACE FUNCTION wn_id_variants(text) RETURNS text[]
+  AS $$
+    SELECT CASE substring($1, '.$')
+      WHEN 'a'
+        THEN array[$1, substring($1, '^\d+') || '-' || 's']
+      WHEN 's'
+        THEN array[$1, substring($1, '^\d+') || '-' || 'a']
+      ELSE array[$1]
+    END
+  $$
+  LANGUAGE SQL
+  IMMUTABLE
+  RETURNS NULL ON NULL INPUT;
+
 CREATE TABLE ili (
   link_type TEXT,
   concept_id INT REFERENCES concepts (id),
@@ -136,11 +150,13 @@ CREATE TABLE ili (
   wn_id TEXT,
   wn_gloss TEXT,
   source TEXT NOT NULL,
+  approved BOOL,
   PRIMARY KEY (concept_id, wn_id, source)
 );
 CREATE INDEX ili_wn_id ON ili (wn_id);
 CREATE INDEX ili_wn_id_substring_1 ON ili (substring(wn_id, '^\d+'));
 CREATE INDEX ili_wn_id_substring_2 ON ili (substring(wn_id, '.$'));
+CREATE INDEX ili_wn_id_variants ON ili USING GIN (wn_id_variants(wn_id));
 CREATE INDEX ili_source ON ili (source);
 
 CREATE TABLE ili_map_wn (
@@ -153,6 +169,7 @@ CREATE INDEX ili_map_wn_wn ON ili_map_wn (wn);
 CREATE INDEX ili_map_wn_version ON ili_map_wn (version);
 CREATE INDEX ili_map_wn_wn_substring_1 ON ili_map_wn (substring(wn, '^\d+'));
 CREATE INDEX ili_map_wn_wn_substring_2 ON ili_map_wn (substring(wn, '.$'));
+CREATE INDEX ili_map_wn_wn_variants ON ili_map_wn USING GIN (wn_id_variants(wn));
 
 CREATE TABLE wn_mapping (
     wn30 text NOT NULL,
@@ -161,6 +178,12 @@ CREATE TABLE wn_mapping (
     PRIMARY KEY (wn30, wn31, kind)
 );
 CREATE INDEX wn_mapping_wn31 ON wn_mapping (wn31);
+CREATE INDEX wn_mapping_wn30_substring_1 ON wn_mapping (substring(wn30, '^\d+'));
+CREATE INDEX wn_mapping_wn30_substring_2 ON wn_mapping (substring(wn30, '.$'));
+CREATE INDEX wn_mapping_wn31_substring_1 ON wn_mapping (substring(wn31, '^\d+'));
+CREATE INDEX wn_mapping_wn31_substring_2 ON wn_mapping (substring(wn31, '.$'));
+CREATE INDEX wn_mapping_wn30_variants ON wn_mapping USING GIN (wn_id_variants(wn30));
+CREATE INDEX wn_mapping_wn31_variants ON wn_mapping USING GIN (wn_id_variants(wn31));
 
 CREATE TABLE roots (
     word text NOT NULL,

@@ -259,7 +259,7 @@ class Generator:
 
         cur.execute(
             """
-            SELECT concept_id, array_agg(DISTINCT wn_id) wn_ids
+            SELECT concept_id, array_agg(wn_id) wn_ids
             FROM (
               SELECT concept_id, wn_id
               FROM ili

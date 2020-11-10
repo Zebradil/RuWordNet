@@ -22,7 +22,7 @@ with conn.cursor() as cur:
         lemma = match.group(1).strip()
 
         # Check if the text entry exists in the database
-        cur.execute("SELECT 1 FROM text_entry WHERE lemma = %s", (lemma,))
+        cur.execute("SELECT 1 FROM text_entry WHERE lemma = %s LIMIT 1", (lemma,))
         if cur.fetchone() is None:
             print(f"#{line}")
             continue

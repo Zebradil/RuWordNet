@@ -49,6 +49,7 @@ CREATE TABLE synonyms (
   entry_id   INTEGER, -- REFERENCES text_entry (id)
   PRIMARY KEY (concept_id, entry_id)
 );
+CREATE INDEX ON synonyms (entry_id);
 
 -- RuWordNet tables
 
@@ -158,6 +159,7 @@ CREATE INDEX ili_wn_id_substring_1 ON ili (substring(wn_id, '^\d+'));
 CREATE INDEX ili_wn_id_substring_2 ON ili (substring(wn_id, '.$'));
 CREATE INDEX ili_wn_id_variants ON ili USING GIN (wn_id_variants(wn_id));
 CREATE INDEX ili_source ON ili (source);
+CREATE INDEX ili_approved ON ili (approved);
 
 CREATE TABLE ili_map_wn (
     ili text NOT NULL,

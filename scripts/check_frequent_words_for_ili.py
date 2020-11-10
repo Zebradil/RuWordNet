@@ -35,7 +35,7 @@ with conn.cursor() as cur:
             JOIN synonyms s ON s.entry_id = t.id
             JOIN ili ON ili.concept_id = s.concept_id
             WHERE t.lemma=%s
-              AND ili.source IN('manual', 'auto verified')
+              AND ili.approved
             LIMIT 1
             """,
             (lemma,),
@@ -52,7 +52,7 @@ with conn.cursor() as cur:
             JOIN synonyms s ON s.entry_id = t.id
             JOIN ili ON ili.concept_id = s.concept_id
             WHERE t.lemma=%s
-              AND ili.source NOT IN('manual', 'auto verified')
+              AND NOT ili.approved
             LIMIT 1
             """,
             (lemma,),

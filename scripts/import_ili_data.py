@@ -43,6 +43,7 @@ def parse_auto(line):
         "wn_id": parts[6],
         "wn_gloss": parts[7],
         "source": "auto",
+        "approved": None,
     }
 
 
@@ -57,7 +58,8 @@ def parse_verified(line):
             "wn_lemma": parts[3],
             "wn_id": parts[5],
             "wn_gloss": parts[6],
-            "source": "auto verified",
+            "source": "auto",
+            "approved": True,
         }
     else:
         return None
@@ -91,8 +93,8 @@ with open(ARGS.file) as file, conn.cursor() as cur:
         else:
             try:
                 cur.execute(
-                    """INSERT INTO ili (link_type, concept_id, wn_lemma, wn_id, wn_gloss, source)
-                    VALUES (%(link_type)s, %(concept_id)s, %(wn_lemma)s, %(wn_id)s, %(wn_gloss)s, %(source)s)""",
+                    """INSERT INTO ili (link_type, concept_id, wn_lemma, wn_id, wn_gloss, source, approved)
+                    VALUES (%(link_type)s, %(concept_id)s, %(wn_lemma)s, %(wn_id)s, %(wn_gloss)s, %(source)s, %(approved)s)""",
                     values,
                 )
                 conn.commit()

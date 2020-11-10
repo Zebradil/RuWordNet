@@ -259,16 +259,18 @@ class Generator:
 
         cur.execute(
             """
-            SELECT concept_id, array_agg(wn_id) wn_ids
+            SELECT concept_id, array_agg(DISTINCT wn_id) wn_ids
             FROM (
               SELECT concept_id, wn_id
               FROM ili
-              WHERE source = 'auto verified'
+              WHERE source != 'manual'
+                AND approved
               UNION
               SELECT concept_id, m.wn30
               FROM ili
                 JOIN wn_mapping m ON m.wn31 = ili.wn_id
               WHERE source = 'manual'
+                AND approved
             ) t
             GROUP BY concept_id
             """

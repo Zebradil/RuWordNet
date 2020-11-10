@@ -279,12 +279,19 @@ class Generator:
 
         root = etree.Element("ili")
         for row in ili:
-            wn_synsets = defaultdict(list)
+            wn_synsets_by_pos = defaultdict(list)
             for wn_synset in [self.get_wn_synset(wn_id) for wn_id in row["wn_ids"]]:
                 pos = wn_synset.pos()
-                wn_synsets["a" if pos == "s" else pos].append(wn_synset)
+                wn_synsets_by_pos["a" if pos == "s" else pos].append(wn_synset)
 
             for rwn_synset in synsets_by_concept_id[row["concept_id"]]:
+                pos = rwn_synset["part_of_speech"]
+                wn_synsets = wn_synsets_by_pos.get(
+                    "a" if pos == "Adj" else pos.lower(), []
+                )
+                if not wn_synsets:
+                    continue
+
                 x_match = etree.SubElement(root, "match")
 
                 x_rwn_synset = etree.SubElement(x_match, "rwn-synset")
@@ -296,10 +303,7 @@ class Generator:
                 for sense_id in rwn_synset["senses"]:
                     self.add_sense(x_rwn_synset, self.get_sense(sense_id))
 
-                pos = rwn_synset["part_of_speech"]
-                for wn_synset in wn_synsets.get(
-                    "a" if pos == "Adj" else pos.lower(), []
-                ):
+                for wn_synset in wn_synsets:
                     x_wn_synset = etree.SubElement(x_match, "wn-synset")
                     x_wn_synset.set(
                         "id", str(wn_synset.offset()).zfill(8) + "-" + wn_synset.pos()

@@ -2,9 +2,12 @@
 
 import csv
 import logging
+import os
 import sys
 
 import psycopg2
+
+TEST = os.getenv("TEST", "1") == "1"
 
 connection_string = (
     "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -38,27 +41,49 @@ with conn.cursor() as cur:
         }
 
         try:
-            cur.execute(
-                """
-                UPDATE ili
-                SET approved = %(approved)s
-                WHERE concept_id = %(concept_id)s
-                  AND (
-                    array[%(wn_id)s] <@ wn_id_variants(wn_id)
-                    OR source = 'manual'
-                    AND EXISTS(
-                      SELECT 1
-                      FROM wn_mapping
-                      WHERE array[%(wn_id)s] <@ wn_id_variants(wn30)
-                        AND wn_id = wn31
-                    )
-                  )
-                """,
-                values,
-            )
-            if cur.rowcount != 1:
-                print(f"{line_number}: {cur.rowcount}")
-            conn.commit()
+            if TEST:
+                cur.execute(
+                    """
+                    SELECT count(1)
+                    FROM ili
+                    WHERE concept_id = %(concept_id)s
+                      AND (
+                        array[%(wn_id)s] <@ wn_id_variants(wn_id)
+                        OR source = 'manual'
+                        AND EXISTS(
+                          SELECT 1
+                          FROM wn_mapping
+                          WHERE array[%(wn_id)s] <@ wn_id_variants(wn30)
+                            AND wn_id = wn31
+                        )
+                      )
+                    """,
+                    values,
+                )
+                row_count = cur.fetchone()[0]
+            else:
+                cur.execute(
+                    """
+                    UPDATE ili
+                    SET approved = %(approved)s
+                    WHERE concept_id = %(concept_id)s
+                      AND (
+                        array[%(wn_id)s] <@ wn_id_variants(wn_id)
+                        OR source = 'manual'
+                        AND EXISTS(
+                          SELECT 1
+                          FROM wn_mapping
+                          WHERE array[%(wn_id)s] <@ wn_id_variants(wn30)
+                            AND wn_id = wn31
+                        )
+                      )
+                    """,
+                    values,
+                )
+                row_count = cur.rowcount
+                conn.commit()
+            if row_count != 1:
+                print(f"{line_number}: {row_count}")
         except:
             print(f"{line_number}")
             raise

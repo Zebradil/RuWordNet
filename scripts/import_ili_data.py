@@ -43,7 +43,7 @@ def parse_auto(line):
         "wn_id": parts[6],
         "wn_gloss": parts[7],
         "source": "auto",
-        "approved": None,
+        "approved": True,
     }
 
 

@@ -204,3 +204,46 @@ CREATE TABLE wn_data (
     version int NOT NULL,
     PRIMARY KEY (id)
 );
+
+/*
+Tables for RuThes v2 (loaded from json representation)
+*/
+CREATE TABLE v2_concepts (
+  id INTEGER PRIMARY KEY,
+  name TEXT,
+  gloss TEXT,
+  en_name TEXT,
+  is_abstract BOOL,
+  is_arguable BOOL,
+  domainmask INTEGER
+);
+CREATE INDEX ON v2_concepts (name);
+CREATE INDEX ON v2_concepts USING GIST (name gist_trgm_ops);
+
+CREATE TABLE v2_text_entry (
+  id INTEGER PRIMARY KEY,
+  name TEXT,
+  lemma TEXT,
+  is_ambig BOOL,
+  is_arguable BOOL
+);
+CREATE INDEX ON v2_text_entry (name);
+CREATE INDEX ON v2_text_entry (lemma);
+
+CREATE TABLE v2_synonyms (
+  concept_id INTEGER, -- REFERENCES v2_concepts (id),
+  entry_id   INTEGER, -- REFERENCES v2_text_entry (id)
+  PRIMARY KEY (concept_id, entry_id)
+);
+
+CREATE TABLE v2_relations (
+  from_id INTEGER, -- REFERENCES concepts (id),
+  to_id   INTEGER, -- REFERENCES concepts (id),
+  name    TEXT,
+  asp     TEXT,
+  is_arguable BOOL,
+  PRIMARY KEY (from_id, to_id, name)
+);
+CREATE INDEX ON v2_relations (name);
+CREATE INDEX ON v2_relations (from_id);
+CREATE INDEX ON v2_relations (to_id);

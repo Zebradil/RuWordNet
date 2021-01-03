@@ -27,6 +27,18 @@ ARGS = parser.parse_args()
 logging.basicConfig(level=logging.INFO)
 
 
+def get_pos(word) -> str:
+    pos = morph.parse(word)[0].tag.POS
+    if pos == "NOUN" or pos is None:
+        return "N"
+    if pos in {"ADJF", "PRTF", "PRTS"}:
+        return "Adj"
+    if pos == "INFN":
+        return "V"
+    logging.info("%s: %s", word, pos)
+    return ""
+
+
 conn = connect(ARGS.connection_string)
 with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
     cur.execute(
@@ -54,5 +66,5 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
     )
     writer.writeheader()
     for row in cur:
-        row["POS"] = morph.parse(row["lemma"])[0].tag.POS
+        row["POS"] = get_pos(row["lemma"])
         writer.writerow(row)

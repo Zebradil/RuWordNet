@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def get_pos(word) -> str:
-    pos = morph.parse(word)[0].tag.POS
+    pos = morph.parse(word)[0].tag.POS  # type: ignore
     if pos == "NOUN" or pos is None:
         return "N"
     if pos in {"ADJF", "PRTF", "PRTS"}:

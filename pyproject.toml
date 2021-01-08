@@ -6,7 +6,7 @@ authors = ["German Lashevich <german.lashevich@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-lxml = "^4.5.2"
+lxml = "^4.6.2"
 argparse = "^1.4.0"
 tqdm = "^4.47.0"
 isort = "^4.2.5"

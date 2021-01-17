@@ -39,6 +39,10 @@ def get_pos(word) -> str:
     return ""
 
 
+def get_poses(word: str) -> str:
+    return " ".join(get_pos(part) for part in word.split(" "))
+
+
 conn = connect(ARGS.connection_string)
 with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
     cur.execute(
@@ -53,7 +57,7 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             join v2_synonyms s on s.entry_id = t.id
             join v2_concepts c2 on c2.id = s.concept_id
             join concepts c on c.id = c2.id
-            where c2.id > 0 and not is_multiword(t.name)
+            where c2.id > 0 and is_multiword(t.name)
             order by 1, 2
         """
     )
@@ -66,5 +70,5 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
     )
     writer.writeheader()
     for row in cur:
-        row["POS"] = get_pos(row["lemma"])
+        row["POS"] = get_poses(row["entry_name"])
         writer.writerow(row)

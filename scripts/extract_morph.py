@@ -63,6 +63,7 @@ def get_main_noun(parts, poses) -> str:
     for n, pos in enumerate(poses):
         if pos == "N" and len(parts[n]) > 1:
             return parts[n]
+    return ""
 
 
 conn = connect(ARGS.connection_string)

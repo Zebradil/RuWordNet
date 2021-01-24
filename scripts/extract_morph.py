@@ -32,14 +32,53 @@ MorphData = namedtuple("MorphData", "pos_string main_word synt_type")
 
 def get_pos(word) -> str:
     pos = morph.parse(word)[0].tag.POS  # type: ignore
+
+    # Exceptions (due to incorrect detection by pymorphy2)
+    if word == "МАРШ" and pos == "INTJ":
+        return "N"
+    if word == "ДЖУЧИ" and pos == "VERB":
+        return "N"
+    if word == "МАЛО" and pos == "NUMR":
+        return "Adv"
+    if word == "РОД" and pos == "VERB":
+        return "N"
+    if word == "ВИЛКОВО" and pos == "ADJS":
+        return "N"
+    if word == "КОВРОВ" and pos == "ADJS":
+        return "N"
+    if word == "ЛЕБЕДИН" and pos == "ADJS":
+        return "N"
+    if word == "ЛИШНЕ" and pos == "ADJS":
+        return "Adv"
+    if word == "ОПОЗИЦИОННО" and pos == "ADJS":
+        return "Adv"
+    if word == "ОПТО" and pos == "ADJS":
+        return "Adv"
+    if word == "ПЕША" and pos == "ADJS":
+        return "N"
+    if word == "ТОЛК" and pos == "INTJ":
+        return "N"
+    if word == "ОБА" and pos == "NUMR":
+        return "Adv"
+
+    # More general rules for renaming POSes
     if pos == "NOUN" or pos is None:
         return "N"
     if pos in {"ADJF", "PRTF", "PRTS"}:
         return "Adj"
     if pos == "INFN":
         return "V"
+    if pos == "ADVB":
+        return "Adv"
+    if pos == "PRCL":
+        return "Prtc"
+    if pos == "NPRO":
+        return "Pron"
+    if pos in {"PREP", "CONJ"}:
+        return pos.capitalize()
+
     logging.info("%s: %s", word, pos)
-    return ""
+    return str(pos)
 
 
 def get_poses(word: str) -> str:

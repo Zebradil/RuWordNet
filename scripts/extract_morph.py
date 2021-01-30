@@ -29,37 +29,61 @@ logging.basicConfig(level=logging.INFO)
 
 MorphData = namedtuple("MorphData", "pos_string main_word synt_type")
 
+# Exceptions (due to incorrect detection by pymorphy2)
+# WORD, DETECTED POS, CORRECT POS
+POS_EXCEPTIONS = (
+    ("МАРШ", "INTJ", "N"),
+    ("ДЖУЧИ", "VERB", "N"),
+    ("МАЛО", "NUMR", "Adv"),
+    ("РОД", "VERB", "N"),
+    ("ВИЛКОВО", "ADJS", "N"),
+    ("КОВРОВ", "ADJS", "N"),
+    ("ЛЕБЕДИН", "ADJS", "N"),
+    ("ЛИШНЕ", "ADJS", "Adv"),
+    ("ОПОЗИЦИОННО", "ADJS", "Adv"),
+    ("ОПТО", "ADJS", "Adv"),
+    ("ПЕША", "ADJS", "N"),
+    ("ТОЛК", "INTJ", "N"),
+    ("ОБА", "NUMR", "Adv"),
+    ("ВПРАВЕ", "PRED", "Prdc"),
+    ("Е", "VERB", "N"),
+    ("НЕЛЬЗЯ", "PRED", "Prtc"),
+    ("НЕТ", "PRED", "Prtc"),
+    ("ПОЗИТИВНО", "ADJS", "Adv"),
+    ("РАД", "ADJS", "N"),
+    ("СМ", "VERB", "N"),
+    ("АНТИВИРУСНИК", "VERB", "N"),
+    ("БПЛА", "VERB", "N"),
+    ("ВПЕЧАТЛЯЮЩЕ", "ADJS", "Adj"),
+    ("ЖИЛИЩНИК", "VERB", "N"),
+    ("ЗАРЯДНИК", "VERB", "N"),
+    ("ЙЕТИ", "VERB", "N"),
+    ("НАЖДАННО-НЕГАДАННО", "ADJS", "Adj"),
+    ("ОФИСНИК", "VERB", "N"),
+    ("ПЕТРОПАВЛ", "VERB", "N"),
+    ("ПОВНИМАТЕЛЬНЕЕ", "COMP", "Adj"),
+    ("ПОДОЛЬШЕ", "COMP", "Adj"),
+    ("ПОДОРОЖЕ", "COMP", "Adj"),
+    ("ПООСТОРОЖНЕЕ", "COMP", "Adj"),
+    ("ПОПОДРОБНЕЕ", "COMP", "Adj"),
+    ("ПОСЛОЖНЕЕ", "COMP", "Adj"),
+    ("СИЗ", "ADJS", "N"),
+    ("СКРОМНЕНЬКО", "ADJS", "Adj"),
+    ("СПРЕЙ", "VERB", "N"),
+    ("ФЕНШУЙ", "VERB", "N"),
+    ("ФИОЛЕТОВО", "ADJS", "Adj"),
+    ("ФОЛК", "VERB", "N"),
+    ("ФЭНШУЙ", "VERB", "N"),
+    ("ШИЗО", "ADJS", "N"),
+)
+
 
 def get_pos(word) -> str:
     pos = morph.parse(word)[0].tag.POS  # type: ignore
 
-    # Exceptions (due to incorrect detection by pymorphy2)
-    if word == "МАРШ" and pos == "INTJ":
-        return "N"
-    if word == "ДЖУЧИ" and pos == "VERB":
-        return "N"
-    if word == "МАЛО" and pos == "NUMR":
-        return "Adv"
-    if word == "РОД" and pos == "VERB":
-        return "N"
-    if word == "ВИЛКОВО" and pos == "ADJS":
-        return "N"
-    if word == "КОВРОВ" and pos == "ADJS":
-        return "N"
-    if word == "ЛЕБЕДИН" and pos == "ADJS":
-        return "N"
-    if word == "ЛИШНЕ" and pos == "ADJS":
-        return "Adv"
-    if word == "ОПОЗИЦИОННО" and pos == "ADJS":
-        return "Adv"
-    if word == "ОПТО" and pos == "ADJS":
-        return "Adv"
-    if word == "ПЕША" and pos == "ADJS":
-        return "N"
-    if word == "ТОЛК" and pos == "INTJ":
-        return "N"
-    if word == "ОБА" and pos == "NUMR":
-        return "Adv"
+    for rule in POS_EXCEPTIONS:
+        if rule[0] == word and rule[1] == pos:
+            return rule[2]
 
     # More general rules for renaming POSes
     if pos == "NOUN" or pos is None:
@@ -119,7 +143,7 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             join v2_synonyms s on s.entry_id = t.id
             join v2_concepts c2 on c2.id = s.concept_id
             join concepts c on c.id = c2.id
-            where c2.id > 0 and is_multiword(t.name)
+            where c2.id > 0
             order by 1, 2
         """
     )

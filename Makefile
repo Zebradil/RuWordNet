@@ -16,50 +16,50 @@ endef
 gen-ruthes: gen-ruthes-concepts gen-ruthes-textentries gen-ruthes-synonyms gen-ruthes-relations
 
 gen-ruthes-concepts:
-	pipenv run python raw2xml/concepts.py
+	poetry run python raw2xml/concepts.py
 
 gen-ruthes-textentries:
-	pipenv run python raw2xml/text_entries.py
+	poetry run python raw2xml/text_entries.py
 
 gen-ruthes-synonyms:
-	pipenv run python raw2xml/synonyms.py
+	poetry run python raw2xml/synonyms.py
 
 gen-ruthes-relations:
-	pipenv run python raw2xml/relations.py
+	poetry run python raw2xml/relations.py
 
 
 # XML -> SQL
 load-ruthes-to-db:
-	pipenv run python xml2sql/xml2sql.py
+	poetry run python xml2sql/xml2sql.py
 
 
 # IMPORT RUTHES RELATIONS
 import-extra-relations: import-antonyms import-class-instance import-meronymy import-domains
 
 import-antonyms:
-	pipenv run python scripts/import_antonyms.py \
+	poetry run python scripts/import_antonyms.py \
 		-s data/antonyms_final.txt
 
 import-class-instance:
-	pipenv run python scripts/import_class-instance_relations.py \
+	poetry run python scripts/import_class-instance_relations.py \
 		-s data/class-instance_edited.txt
 
 import-meronymy:
-	pipenv run python scripts/import_meronymy_relations.py \
+	poetry run python scripts/import_meronymy_relations.py \
 		-s data/add_part.txt \
 		--type ЦЕЛОЕ \
 		--sub-type add_part
-	pipenv run python scripts/import_meronymy_relations.py \
+	poetry run python scripts/import_meronymy_relations.py \
 		-s data/process_steps_final.txt \
 		--type ЧАСТЬ \
 		--sub-type process_steps
-	pipenv run python scripts/import_meronymy_relations.py \
+	poetry run python scripts/import_meronymy_relations.py \
 		-s data/classical_meronymy_edited.txt \
 		--type ЧАСТЬ  \
 		--sub-type classical_meronymy
 
 import-domains:
-	pipenv run python scripts/import_domains.py
+	poetry run python scripts/import_domains.py
 
 fix-ruthes-relations:
 	$(call runsql,'scripts/sql/fixup_relations.sql')
@@ -67,21 +67,21 @@ fix-ruthes-relations:
 
 # GENERATE RUWORDNET
 gen-ruwordnet:
-	pipenv run python sql2sql/sql2sql.py
+	poetry run python sql2sql/sql2sql.py
 	$(call runsql,'sql/post-conversion.sql')
 
 gen-ruwordnet-xml:
 	rm -f sql2xml/out/rwn/*
-	pipenv run python sql2xml/sql2rwn_xml.py
+	poetry run python sql2xml/sql2rwn_xml.py
 	cd sql2xml/out/rwn; tar -czvf ../rwn-$$(date +%F).tgz .
 
 
 # IMPORT RUWORDNET RELATIONS
 import-cause-entailment:
-	pipenv run python scripts/import_cause-entailment.py \
+	poetry run python scripts/import_cause-entailment.py \
 		-s data/cause.utf8.filtered.txt \
 		--name cause
-	pipenv run python scripts/import_cause-entailment.py \
+	poetry run python scripts/import_cause-entailment.py \
 		-s data/entailment.utf8.filtered.txt \
 		--name entailment
 
@@ -90,11 +90,11 @@ gen-ruwordnet-relations: gen-derived-from gen-composed-of
 
 gen-derived-from:
 	@echo 'Fetch logs from derived_from.out.log'
-	pipenv run python scripts/cognates_relation_statistics.py 2> derived_from.out.log
+	poetry run python scripts/cognates_relation_statistics.py 2> derived_from.out.log
 
 gen-composed-of:
 	@echo 'Fetch logs from composed_of.out.log'
-	pipenv run python scripts/collocation_relation_statistics.py 2> composed_of.out.log
+	poetry run python scripts/collocation_relation_statistics.py 2> composed_of.out.log
 
 
 # UPDATE WEBSITE
@@ -109,7 +109,7 @@ import-syn-tabs:
 
 # GENERATE OMW RWN
 gen-ruwordnet-omw:
-	pipenv run python sql2xml/sql2rwn_omw_xml.py > rwn_omw.xml
+	poetry run python sql2xml/sql2rwn_omw_xml.py > rwn_omw.xml
 	tar -czvf rwn_omw-$$(date +%F).tgz rwn_omw.xml
 
 #####################################################

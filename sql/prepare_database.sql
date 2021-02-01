@@ -225,7 +225,10 @@ CREATE TABLE v2_text_entry (
   name TEXT,
   lemma TEXT,
   is_ambig BOOL,
-  is_arguable BOOL
+  is_arguable BOOL,
+  main_word  TEXT,
+  synt_type  TEXT,
+  pos_string TEXT
 );
 CREATE INDEX ON v2_text_entry (name);
 CREATE INDEX ON v2_text_entry (lemma);

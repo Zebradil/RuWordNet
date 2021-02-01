@@ -41,4 +41,5 @@ INSERT INTO synset_relations (parent_id, name, child_id)
     JOIN synsets s2
       ON s2.name = c2.name
   WHERE r.name = 'ДОМЕН'
-    AND s2.part_of_speech = 'N';
+    AND s2.part_of_speech = 'N'
+ON CONFLICT DO NOTHING;

@@ -123,9 +123,13 @@ FROM (
 
         rows = dict_cur.fetchall()
         if not rows:
-            print(f"Not found: {senses_a}, {senses_b}")
+            print("Not found")
+            print(f"A: {senses_a}")
+            print(f"B: {senses_b}\n")
         elif len(rows) > 1:
-            print(f"Multiple matches: {rows}, {senses_a}, {senses_b}")
+            print("Multiple matches")
+            print(f"A: {senses_a}")
+            print(f"B: {senses_b}\n")
         for row in rows:
             values = {"parent_id": row["a"], "child_id": row["b"]}
             try:

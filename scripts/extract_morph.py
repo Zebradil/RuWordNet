@@ -22,6 +22,9 @@ parser.add_argument(
     help="Postgresql database connection string ({})".format(connection_string),
     default=connection_string,
 )
+parser.add_argument(
+    "--apply", help="Apply morph data to database entries", action="store_true"
+)
 
 ARGS = parser.parse_args()
 
@@ -205,25 +208,35 @@ def get_main_noun(parts, poses) -> str:
     return ""
 
 
-conn = connect(ARGS.connection_string)
-with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
-    cur.execute(
-        """
-            select c2.name concept_name, t.name entry_name, t.lemma
-            from (
-                select t2.*
-                from v2_text_entry t2
-                left join text_entry t on t.id = t2.id or t.name = t2.name or t.lemma = t2.lemma
-                where t.id is null
-            ) t
-            join v2_synonyms s on s.entry_id = t.id
-            join v2_concepts c2 on c2.id = s.concept_id
-            join concepts c on c.id = c2.id
-            where c2.id > 0
-            order by 1, 2
-        """
-    )
-    morph = pymorphy2.MorphAnalyzer()
+def get_data(conn):
+    with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+        cur.execute(
+            """
+                select c2.name concept_name, t.name entry_name, t.lemma, t.id
+                from (
+                    select t2.*
+                    from v2_text_entry t2
+                    left join text_entry t on t.id = t2.id or t.name = t2.name or t.lemma = t2.lemma
+                    where t.id is null
+                ) t
+                join v2_synonyms s on s.entry_id = t.id
+                join v2_concepts c2 on c2.id = s.concept_id
+                join concepts c on c.id = c2.id
+                where c2.id > 0
+                order by 1, 2
+            """
+        )
+
+        for row in cur:
+            morph_data = get_morph_data(row["lemma"], row["concept_name"])
+            if morph_data is not None:
+                row["pos_string"] = morph_data.pos_string
+                row["main_word"] = morph_data.main_word
+                row["synt_type"] = morph_data.synt_type
+            yield row
+
+
+def write_csv(conn):
     writer = csv.DictWriter(
         sys.stdout,
         fieldnames=[
@@ -235,13 +248,38 @@ with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             "synt_type",
         ],
         delimiter=",",
+        extrasaction="ignore",
         quotechar='"',
     )
     writer.writeheader()
-    for row in cur:
-        morph_data = get_morph_data(row["lemma"])
-        if morph_data is not None:
-            row["pos_string"] = morph_data.pos_string
-            row["main_word"] = morph_data.main_word
-            row["synt_type"] = morph_data.synt_type
+
+    for row in get_data(conn):
         writer.writerow(row)
+
+
+def update_database(conn):
+    with conn.cursor() as cur:
+        for row in get_data(conn):
+            try:
+                cur.execute(
+                    """UPDATE v2_text_entry
+                   SET synt_type = %(synt_type)s,
+                       main_word = %(main_word)s,
+                       pos_string = %(pos_string)s
+                   WHERE id = %(id)s"""
+                )
+                conn.commit()
+            except:
+                logging.exception("Something went wrong")
+                conn.rollback()
+
+
+def main():
+    conn = connect(ARGS.connection_string)
+    if ARGS.apply:
+        update_database(conn)
+    else:
+        write_csv(conn)
+
+
+main()

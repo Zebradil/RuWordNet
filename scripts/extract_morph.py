@@ -199,6 +199,8 @@ def get_morph_data(word, concept) -> MorphData:
         return MorphData(" ".join(poses), get_main_noun(parts, poses), "NG")
     if "Adj" in poses:
         return MorphData(" ".join(poses), parts[poses.index("Adj")], "AdjG")
+    logging.info("%s: %s", word, poses)
+    return MorphData(" ".join(poses), "", "")
 
 
 def get_main_noun(parts, poses) -> str:
@@ -229,10 +231,9 @@ def get_data(conn):
 
         for row in cur:
             morph_data = get_morph_data(row["lemma"], row["concept_name"])
-            if morph_data is not None:
-                row["pos_string"] = morph_data.pos_string
-                row["main_word"] = morph_data.main_word
-                row["synt_type"] = morph_data.synt_type
+            row["pos_string"] = morph_data.pos_string
+            row["main_word"] = morph_data.main_word
+            row["synt_type"] = morph_data.synt_type
             yield row
 
 

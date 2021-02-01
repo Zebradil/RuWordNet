@@ -77,6 +77,79 @@ POS_EXCEPTIONS = (
     ("ШИЗО", "ADJS", "N"),
 )
 
+# concept, text_entry, lemma, pos_string, main_word, synt_type
+PREDEFINED_MORPHS = (
+    ("АМЕРИКАНСКИЙ ДОЛЛАР", "У.Е.", "У Е", MorphData("Adj N", "Е", "NG"),),
+    (
+        "БЕЛОЗЕРСКОЕ",
+        "Г. БЕЛОЗЕРСКОЕ",
+        "Г БЕЛОЗЕРСКИЙ",
+        MorphData("N N", "БЕЛОЗЕРСКИЙ", "NG"),
+    ),
+    ("ВИДНОЕ", "Г. ВИДНОЕ", "Г ВИДНОЕ", MorphData("N N", "ВИДНОЕ", "NG"),),
+    (
+        "ЖЕЛАТЕЛЬНЫЙ (НУЖНЫЙ)",
+        "НЕ ЛИШНЕ",
+        "НЕ ЛИШНЕ",
+        MorphData("Prtc Adv ", "ЛИШНЕ", "AdvG"),
+    ),
+    ("ЖЕЛЕЗНОДОРОЖНЫЙ ТРАНСПОРТ", "Ж/Д", "Ж Д", MorphData("Adj N", "Д", "NG"),),
+    ("ЗАОЗЕРНЫЙ", "Г. ЗАОЗЕРНЫЙ", "Г ЗАОЗЕРНЫЙ", MorphData("N N", "ЗАОЗЕРНЫЙ", "NG"),),
+    (
+        "ИЗОБИЛЬНЫЙ",
+        "Г. ИЗОБИЛЬНЫЙ",
+        "Г ИЗОБИЛЬНЫЙ",
+        MorphData("N N", "ИЗОБИЛЬНЫЙ", "NG"),
+    ),
+    (
+        "ОТСУТСТВИЕ ПРАВ",
+        "НЕ ВПРАВЕ",
+        "НЕ ВПРАВЕ",
+        MorphData("Prtc Adv", "ВПРАВЕ", "AdvG"),
+    ),
+    (
+        "НЕПОНЯТНЫЙ, НЕЯСНЫЙ",
+        "НЕ ЯСНО",
+        "НЕ ЯСНО",
+        MorphData("Prtc Adv", " ЯСНО", " AdvG"),
+    ),
+    (
+        "ПОВТОРНЫЙ",
+        "НЕ ВПЕРВЫЕ",
+        "НЕ ВПЕРВЫЕ",
+        MorphData("Prtc Adv", "ВПЕРВЫЕ", "AdvG"),
+    ),
+    ("СЕЛЬСКОЕ ХОЗЯЙСТВО", "С/Х", "С Х", MorphData("Adj N", "Х", "NG"),),
+    (
+        "ЧАСТИЧНЫЙ",
+        "НЕ ПОЛНОСТЬЮ",
+        "НЕ ПОЛНОСТЬЮ",
+        MorphData("Prtc Adv", "ПОЛНОСТЬЮ", "AdvG"),
+    ),
+    ("БОРЩ", "БОРЩЕВОЙ", "БОРЩЕВОЙ", MorphData("Adj", "БОРЩЕВОЙ", "Adj"),),
+    (
+        "БОСНИЯ И ГЕРЦЕГОВИНА",
+        "БОСНО-ГЕРЦОГОВИНСКИЙ",
+        "БОСНО-ГЕРЦОГОВИНСКИЙ",
+        MorphData("Adj", "БОСНО-ГЕРЦОГОВИНСКИЙ", "Adj"),
+    ),
+    ("ПИНГВИН", "ПИНГВИНИЙ", "ПИНГВИНИЙ", MorphData("Adj", "ПИНГВИНИЙ", "Adj"),),
+    (
+        "ПОЛУСРЕДНИЙ ВЕС",
+        "ПОЛУСРЕДНИЙ",
+        "ПОЛУСРЕДНИЙ",
+        MorphData("Adj", "ПОЛУСРЕДНИЙ", "Adj"),
+    ),
+    (
+        "ПАРАЗИТИЗМ, ПОТРЕБИТЕЛЬСТВО",
+        "ОТНОСИТЬСЯ ПОТРЕБИТЕЛЬСКИ",
+        "ОТНОСИТЬСЯ ПОТРЕБИТЕЛЬСКИ",
+        MorphData("V Adv", "ОТНОСИТЬСЯ", "VG"),
+    ),
+)
+
+morph = pymorphy2.MorphAnalyzer()
+
 
 def get_pos(word) -> str:
     pos = morph.parse(word)[0].tag.POS  # type: ignore
@@ -109,7 +182,10 @@ def get_poses(word: str) -> str:
     return " ".join(get_pos(part) for part in word.split(" "))
 
 
-def get_morph_data(word) -> MorphData:
+def get_morph_data(word, concept) -> MorphData:
+    for predefined_morph in PREDEFINED_MORPHS:
+        if concept == predefined_morph[0] and word == predefined_morph[2]:
+            return predefined_morph[3]
     parts = word.split(" ")
     poses = [get_pos(part) for part in parts]
     if len(parts) == 1:

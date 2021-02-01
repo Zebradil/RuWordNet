@@ -266,7 +266,8 @@ def update_database(conn):
                    SET synt_type = %(synt_type)s,
                        main_word = %(main_word)s,
                        pos_string = %(pos_string)s
-                   WHERE id = %(id)s"""
+                   WHERE id = %(id)s""",
+                    row,
                 )
                 conn.commit()
             except:

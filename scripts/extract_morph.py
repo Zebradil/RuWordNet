@@ -271,7 +271,7 @@ def update_database(conn):
                 )
                 conn.commit()
             except:
-                logging.exception("Something went wrong")
+                logging.exception("Something went wrong with %s", row)
                 conn.rollback()
 
 

@@ -57,7 +57,14 @@ FROM (
               SELECT
                 synset_id,
                 count(1) cnt,
-                (SELECT count(*) FROM senses WHERE synset_id = s.synset_id) cnt2
+                (
+                  SELECT count(*)
+                  FROM senses ss
+                    JOIN text_entry t ON t.name = ss.name
+                  WHERE ss.synset_id = s.synset_id
+                    -- исключаем новые текстовые входы, потому что их нет в исходных файлах
+                    AND t.version = 'initial'
+                ) cnt2
               FROM senses s
               WHERE name = ANY (%s)
               GROUP BY synset_id
@@ -81,7 +88,14 @@ FROM (
                 SELECT
                   synset_id,
                   count(1) cnt,
-                  (SELECT count(*) FROM senses WHERE synset_id = s.synset_id) cnt2
+                  (
+                    SELECT count(*)
+                    FROM senses ss
+                      JOIN text_entry t ON t.name = ss.name
+                    WHERE ss.synset_id = s.synset_id
+                      -- исключаем новые текстовые входы, потому что их нет в исходных файлах
+                      AND t.version = 'initial'
+                  ) cnt2
                 FROM senses s
                 WHERE name = ANY (%s)
                 GROUP BY synset_id

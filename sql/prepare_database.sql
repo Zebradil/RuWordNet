@@ -38,7 +38,8 @@ CREATE TABLE text_entry (
   lemma      TEXT,
   main_word  TEXT,
   synt_type  TEXT,
-  pos_string TEXT
+  pos_string TEXT,
+  version    TEXT
 );
 
 CREATE INDEX ON text_entry (name);

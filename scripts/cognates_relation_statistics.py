@@ -13,7 +13,7 @@ from typing import Dict, List
 from psycopg2 import IntegrityError, connect, extras
 from tqdm import tqdm
 
-logging.basicConfig(level="INFO", format="%(word)-31s %(name)-4s %(seq)-3s %(message)s")
+logging.basicConfig(level="INFO")
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 PREDEFINED_COGNATES_FILE = os.path.join(PKG_ROOT, "predefined_cognates.txt")
@@ -472,10 +472,12 @@ def main():
         workers_count = cpu_count() - 1
         queue = JoinableQueue(workers_count * 10)
         for i in range(workers_count):
-            worker = Worker()
-            worker.set(
-                queue, ARGS.connection_string, logging.getLogger(f"w-{i}"), ARGS.test
+            wlogger = logging.getLogger(f"w-{i}")
+            wlogger.handlers[0].setFormatter(
+                logging.Formatter('"%(word)-31s %(name)-4s %(seq)-3s %(message)s"')
             )
+            worker = Worker()
+            worker.set(queue, ARGS.connection_string, wlogger, ARGS.test)
             worker.daemon = True
             worker.start()
 

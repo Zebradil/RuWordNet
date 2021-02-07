@@ -8,7 +8,7 @@ from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.split(__file__)[0]
 
-parser = argparse.ArgumentParser(description="Convert RuThes to RuWordNet.")
+parser = argparse.ArgumentParser(description="Convert RuThes to RuWordNet")
 
 connection_string = (
     "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -289,15 +289,13 @@ def uniqify(seq, idfun=None):
         def idfun(x):
             return x
 
-    seen = {}
-    result = []
+    seen = set()
     for item in seq:
         marker = idfun(item)
         if marker in seen:
             continue
-        seen[marker] = 1
-        result.append(item)
-    return result
+        seen.add(marker)
+        yield item
 
 
 def make_insert_query(table, fields, cur):

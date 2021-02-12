@@ -245,10 +245,9 @@ class Generator:
             GROUP BY concept_id
             """
         )
-        ili = cur.fetchall()
 
         root = etree.Element("ili")
-        for row in ili:
+        for row in cur:
             wn_synsets_by_pos = defaultdict(list)
             for wn_synset in [self.get_wn_synset(wn_id) for wn_id in row["wn_ids"]]:
                 pos = wn_synset.pos()

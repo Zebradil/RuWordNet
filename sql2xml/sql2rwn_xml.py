@@ -130,7 +130,7 @@ class Generator:
                     print("POS: " + current_pos)
                 self.add_synset(synsets_root, synset)
                 for sense_id in synset["senses"]:
-                    self.add_sense(senses_root, self.get_sense(sense_id))
+                    self.add_sense(senses_root, self.senses[sense_id])
                 for relation in synset["relations"]:
                     self.add_synset_relation(synset_relations_root, relation)
                 print(
@@ -167,7 +167,7 @@ class Generator:
         synset.set("part_of_speech", row["part_of_speech"])
 
         for sense_id in row["senses"]:
-            sense = self.get_sense(sense_id)
+            sense = self.senses[sense_id]
             sense_el = etree.SubElement(synset, "sense")
             sense_el.set("id", str(sense["id"]))
             sense_el.text = sense["lemma"]
@@ -182,16 +182,6 @@ class Generator:
     def fill_element_attributes(element, attributes: dict):
         for k, v in attributes.items():
             element.set(k, xstr(v))
-
-    def get_sense(self, sense_id):
-        return self.senses[sense_id]
-
-    def get_relations(self, synset):
-        return [
-            relation
-            for relation in self.synset_relations
-            if relation["parent_id"] == synset["id"]
-        ]
 
     def generate_sense_relations_file(self, relation_name, cur):
         print('Generating "{}" relations file'.format(relation_name))
@@ -287,7 +277,7 @@ class Generator:
                 x_rwn_synset.set("part_of_speech", rwn_synset["part_of_speech"])
 
                 for sense_id in rwn_synset["senses"]:
-                    self.add_sense(x_rwn_synset, self.get_sense(sense_id))
+                    self.add_sense(x_rwn_synset, self.senses[sense_id])
 
                 for wn_synset in wn_synsets:
                     x_wn_synset = etree.SubElement(x_match, "wn-synset")

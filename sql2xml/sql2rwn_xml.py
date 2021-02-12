@@ -135,7 +135,7 @@ class Generator:
 
             print("building trees...")
 
-            current_pos = None
+            current_pos = ""
             synsets_root = None
             senses_root = None
             synset_relations_root = None
@@ -144,7 +144,7 @@ class Generator:
             count = len(self.synsets)
             for synset in self.synsets:
                 if current_pos != synset["part_of_speech"]:
-                    if current_pos is not None:
+                    if not current_pos:
                         print()
                         self.write_file(synsets_root, "synsets", current_pos)
                         self.write_file(senses_root, "senses", current_pos)

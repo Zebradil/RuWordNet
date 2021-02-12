@@ -10,8 +10,6 @@ from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-extras.register_uuid()
-
 
 def main():
     parser = argparse.ArgumentParser(description="Generate RuWordNet xml files")
@@ -78,19 +76,7 @@ class Generator:
                 ORDER BY part_of_speech
                 """
             )
-            rows = cur.fetchall()
-            self.synsets = [
-                {
-                    **row,
-                    **{
-                        "relations": [],
-                        "index": gen_synset_index(
-                            row["concept_id"], row["part_of_speech"]
-                        ),
-                    },
-                }
-                for row in rows
-            ]
+            self.synsets = [{**row, "relations": [],} for row in cur]
             synsets_by_id = {synset["id"]: synset for synset in self.synsets}
 
             print("senses")
@@ -107,19 +93,8 @@ class Generator:
                 INNER JOIN text_entry t ON t.name = senses.name
                 """
             )
-            rows = cur.fetchall()
             self.senses = {
-                row["id"]: {
-                    **row,
-                    **{
-                        "synset_id": synsets_by_id[row["synset_id"]]["index"],
-                        "id": gen_sense_index(
-                            row["concept_id"], row["part_of_speech"], row["entry_id"]
-                        ),
-                        "meaning": int(row["meaning"]) + 1,
-                    },
-                }
-                for row in rows
+                row["id"]: {**row, "meaning": int(row["meaning"]) + 1,} for row in cur
             }
 
             print("synset relations")
@@ -128,10 +103,7 @@ class Generator:
 
             print("distribute relations...")
             for relation in self.synset_relations:
-                synset = synsets_by_id[relation["parent_id"]]
-                relation["parent_id"] = synset["index"]
-                relation["child_id"] = synsets_by_id[relation["child_id"]]["index"]
-                synset["relations"].append(relation)
+                synsets_by_id[relation["parent_id"]]["relations"].append(relation)
 
             print("building trees...")
 
@@ -144,7 +116,7 @@ class Generator:
             count = len(self.synsets)
             for synset in self.synsets:
                 if current_pos != synset["part_of_speech"]:
-                    if not current_pos:
+                    if current_pos:
                         print()
                         self.write_file(synsets_root, "synsets", current_pos)
                         self.write_file(senses_root, "senses", current_pos)
@@ -189,8 +161,7 @@ class Generator:
 
     def add_synset(self, root: etree.Element, row: dict):
         synset = etree.SubElement(root, "synset")
-        synset.set("id", row["index"])
-        # synset.set('id', str(row['id']))
+        synset.set("id", row["id"])
         synset.set("ruthes_name", row["name"])
         synset.set("definition", xstr(row["definition"]))
         synset.set("part_of_speech", row["part_of_speech"])
@@ -310,7 +281,7 @@ class Generator:
                 x_match = etree.SubElement(root, "match")
 
                 x_rwn_synset = etree.SubElement(x_match, "rwn-synset")
-                x_rwn_synset.set("id", rwn_synset["index"])
+                x_rwn_synset.set("id", rwn_synset["id"])
                 x_rwn_synset.set("ruthes_name", rwn_synset["name"])
                 x_rwn_synset.set("definition", xstr(rwn_synset["definition"]))
                 x_rwn_synset.set("part_of_speech", rwn_synset["part_of_speech"])

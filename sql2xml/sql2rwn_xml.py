@@ -112,9 +112,8 @@ class Generator:
             senses_root = None
             synset_relations_root = None
 
-            i = 0
             count = len(self.synsets)
-            for synset in self.synsets:
+            for i, synset in enumerate(self.synsets):
                 if current_pos != synset["part_of_speech"]:
                     if current_pos:
                         print()
@@ -134,9 +133,10 @@ class Generator:
                     self.add_sense(senses_root, self.get_sense(sense_id))
                 for relation in synset["relations"]:
                     self.add_synset_relation(synset_relations_root, relation)
-                i += 1
                 print(
-                    "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
+                    "\rProgress: {0}% ({1})".format(
+                        round((i + 1) / count * 100), i + 1
+                    ),
                     end="",
                     flush=True,
                 )

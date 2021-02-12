@@ -40,14 +40,6 @@ def main():
     generator.run()
 
 
-def gen_synset_index(concept_id, part_of_speech) -> str:
-    return "-".join((str(concept_id), part_of_speech[0]))
-
-
-def gen_sense_index(concept_id, part_of_speech, entry_id) -> str:
-    return "-".join((str(concept_id), part_of_speech[0], str(entry_id)))
-
-
 class Generator:
     def __init__(self, out_dir: str, connection):
         self.connection = connection

@@ -8,8 +8,6 @@ import uuid
 from nltk.tree import ParentedTree
 from psycopg2 import connect, errors, extras
 
-from sql2xml.sql2rwn_xml import gen_sense_index, gen_synset_index
-
 PKG_ROOT = os.path.split(__file__)[0]
 
 logging.basicConfig(level="INFO")
@@ -271,6 +269,14 @@ def transform_ruthes_to_ruwordnet(dry_run):
                 )
         conn.commit()
         print()
+
+
+def gen_synset_index(concept_id, part_of_speech) -> str:
+    return "-".join((str(concept_id), part_of_speech[0]))
+
+
+def gen_sense_index(concept_id, part_of_speech, entry_id) -> str:
+    return "-".join((str(concept_id), part_of_speech[0], str(entry_id)))
 
 
 class SoftInserter:

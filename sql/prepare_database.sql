@@ -55,7 +55,7 @@ CREATE INDEX ON synonyms (entry_id);
 -- RuWordNet tables
 
 CREATE TABLE synsets (
-  id             UUID PRIMARY KEY,
+  id             TEXT PRIMARY KEY,
   name           TEXT,
   definition     TEXT,
   part_of_speech TEXT,
@@ -66,8 +66,8 @@ CREATE INDEX ON synsets (name);
 CREATE INDEX ON synsets (part_of_speech);
 
 CREATE TABLE senses (
-  id        UUID PRIMARY KEY,
-  synset_id UUID REFERENCES synsets (id),
+  id        TEXT PRIMARY KEY,
+  synset_id TEXT REFERENCES synsets (id),
   name      TEXT,
   lemma     TEXT,
   main_word TEXT,
@@ -89,8 +89,8 @@ CREATE TABLE relation_types (
 );
 
 CREATE TABLE sense_relations (
-  parent_id UUID REFERENCES senses (id),
-  child_id  UUID REFERENCES senses (id),
+  parent_id TEXT REFERENCES senses (id),
+  child_id  TEXT REFERENCES senses (id),
   name      TEXT REFERENCES relation_types (name),
   PRIMARY KEY (parent_id, child_id, name)
 );
@@ -100,8 +100,8 @@ CREATE INDEX ON sense_relations (child_id);
 CREATE INDEX ON sense_relations (name);
 
 CREATE TABLE synset_relations (
-  parent_id UUID REFERENCES synsets (id),
-  child_id  UUID REFERENCES synsets (id),
+  parent_id TEXT REFERENCES synsets (id),
+  child_id  TEXT REFERENCES synsets (id),
   name      TEXT REFERENCES relation_types (name),
   PRIMARY KEY (parent_id, child_id, name)
 );

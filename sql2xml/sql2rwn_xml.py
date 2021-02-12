@@ -10,37 +10,42 @@ from psycopg2 import connect, extras
 
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-parser = argparse.ArgumentParser(description="Generate RuWordNet xml files")
-connection_string = (
-    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
-)
-parser.add_argument(
-    "-c",
-    "--connection-string",
-    type=str,
-    help="Postgresql database connection string ({})".format(connection_string),
-    default=connection_string,
-)
-parser.add_argument(
-    "-o",
-    "--output-directory",
-    help="A directory where xml-files will be saved",
-    default=os.path.join(PKG_ROOT, "out", "rwn"),
-)
-
-ARGS = parser.parse_args()
-
 extras.register_uuid()
 
 
-def gen_synset_index(row) -> str:
-    return "-".join((str(row["concept_id"]), row["part_of_speech"][0]))
-
-
-def gen_sense_index(row) -> str:
-    return "-".join(
-        (str(row["concept_id"]), row["part_of_speech"][0], str(row["entry_id"]))
+def main():
+    parser = argparse.ArgumentParser(description="Generate RuWordNet xml files")
+    connection_string = (
+        "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
     )
+    parser.add_argument(
+        "-c",
+        "--connection-string",
+        type=str,
+        help="Postgresql database connection string ({})".format(connection_string),
+        default=connection_string,
+    )
+    parser.add_argument(
+        "-o",
+        "--output-directory",
+        help="A directory where xml-files will be saved",
+        default=os.path.join(PKG_ROOT, "out", "rwn"),
+    )
+
+    ARGS = parser.parse_args()
+
+    generator = Generator(
+        out_dir=ARGS.output_directory, connection=connect(ARGS.connection_string)
+    )
+    generator.run()
+
+
+def gen_synset_index(concept_id, part_of_speech) -> str:
+    return "-".join((str(concept_id), part_of_speech[0]))
+
+
+def gen_sense_index(concept_id, part_of_speech, entry_id) -> str:
+    return "-".join((str(concept_id), part_of_speech[0], str(entry_id)))
 
 
 class Generator:
@@ -75,7 +80,15 @@ class Generator:
             )
             rows = cur.fetchall()
             self.synsets = [
-                {**row, **{"relations": [], "index": gen_synset_index(row)}}
+                {
+                    **row,
+                    **{
+                        "relations": [],
+                        "index": gen_synset_index(
+                            row["concept_id"], row["part_of_speech"]
+                        ),
+                    },
+                }
                 for row in rows
             ]
             synsets_by_id = {synset["id"]: synset for synset in self.synsets}
@@ -100,7 +113,9 @@ class Generator:
                     **row,
                     **{
                         "synset_id": synsets_by_id[row["synset_id"]]["index"],
-                        "id": gen_sense_index(row),
+                        "id": gen_sense_index(
+                            row["concept_id"], row["part_of_speech"], row["entry_id"]
+                        ),
                         "meaning": int(row["meaning"]) + 1,
                     },
                 }
@@ -331,7 +346,5 @@ def xstr(value):
     return "" if value is None else str(value)
 
 
-generator = Generator(
-    out_dir=ARGS.output_directory, connection=connect(ARGS.connection_string)
-)
-generator.run()
+if __name__ == "__main__":
+    main()

@@ -1,56 +1,65 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import os
 import uuid
 
-from psycopg2 import connect, extras
+from nltk.tree import ParentedTree
+from psycopg2 import connect, errors, extras
+
+from sql2xml.sql2rwn_xml import gen_sense_index, gen_synset_index
 
 PKG_ROOT = os.path.split(__file__)[0]
 
-parser = argparse.ArgumentParser(description="Convert RuThes to RuWordNet")
-
-connection_string = (
-    "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
-)
-parser.add_argument(
-    "-c",
-    "--connection-string",
-    type=str,
-    help="Postgresql database connection string ({})".format(connection_string),
-    default=connection_string,
-)
-
-parser.add_argument("-n", "--dry-run", action="store_true")
-
-ARGS = parser.parse_args()
+logging.basicConfig(level="INFO")
 
 conn = None
+
+POS_TYPE_MAP = {
+    "N": {"N", "NG", "NGprep", "PrepG"},
+    "V": {"V", "VG", "VGprep", "Prdc"},
+    "Adj": {"Adj", "AdjG", "AdjGprep"},
+}
+
+# все типы текстовых входов, которые можно экспортировать
+ALL_TYPES = set().union(*POS_TYPE_MAP.values())
 
 
 def main():
     global conn
 
+    parser = argparse.ArgumentParser(description="Convert RuThes to RuWordNet")
+
+    connection_string = (
+        "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
+    )
+    parser.add_argument(
+        "-c",
+        "--connection-string",
+        type=str,
+        help="Postgresql database connection string ({})".format(connection_string),
+        default=connection_string,
+    )
+
+    parser.add_argument("-n", "--dry-run", action="store_true")
+
+    ARGS = parser.parse_args()
+
     conn = connect(ARGS.connection_string)
 
-    print("Start")
-    transform_ruthes_to_ruwordnet()
-    print("Done")
+    logging.info("Start")
+    transform_ruthes_to_ruwordnet(ARGS.dry_run)
+    logging.info("Done")
 
 
-def transform_ruthes_to_ruwordnet():
+def transform_ruthes_to_ruwordnet(dry_run):
 
-    all_types = {
-        "N": ("N", "NG", "NGprep", "PrepG"),
-        "V": ("V", "VG", "VGprep", "Prdc"),
-        "Adj": ("Adj", "AdjG", "AdjGprep"),
-    }
-    # все типы текстовых входов, которые можно экспортировать
-    types = [i for sub in all_types.values() for i in sub]
+    inserter = SoftInserter(conn)
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
 
-        print("Finding entries...")
+        logging.info("Finding entries...")
 
         sql = """
           SELECT
@@ -117,7 +126,7 @@ def transform_ruthes_to_ruwordnet():
                 }
                 concepts[cid] = concept
             # если текстовый вход имеет тип из списка для экспорта, он добавляется к понятию
-            if row["synt_type"] in types:
+            if row["synt_type"] in ALL_TYPES:
                 entry = {
                     k: row[k]
                     for k in (
@@ -130,14 +139,12 @@ def transform_ruthes_to_ruwordnet():
                         "poses",
                     )
                 }
-                entry["part_of_speech"] = get_part_of_speech(
-                    entry["synt_type"], all_types
-                )
+                entry["part_of_speech"] = get_part_of_speech(entry["synt_type"])
                 concepts[cid]["entries"].append(entry)
 
-        print("{0} entries found.".format(cur.rowcount))
+        logging.info("{0} entries found.".format(cur.rowcount))
 
-        print("Selecting relations...")
+        logging.info("Selecting relations...")
         sql = """
           SELECT r.*
           FROM relations r
@@ -153,45 +160,31 @@ def transform_ruthes_to_ruwordnet():
         for relation in cur:
             concepts[relation["from_id"]]["relations"].append(relation)
 
-        fields = ("id", "name", "definition", "part_of_speech")
-        insert_synset_sql = make_insert_query("synsets", fields, cur)
-
-        fields = (
-            "id",
-            "synset_id",
-            "name",
-            "lemma",
-            "synt_type",
-            "meaning",
-            "main_word",
-            "poses",
-        )
-        insert_sense_sql = make_insert_query("senses", fields, cur)
-
         count = len(concepts)
         i = 0
-        print("Processing concepts ({0})...".format(count))
+        logging.info("Processing concepts (%s)...", count)
         for cid, concept in concepts.items():
             i += 1
 
             # Определение, в каких частях речи представлено понятие
             uuids = {}
             for entry in concept["entries"]:
-                uuids[entry["part_of_speech"]] = True
+                uuids[entry["part_of_speech"]] = None
 
             # Создание синсета для каждой из частей речи
-            for pos in uuids.keys():
+            for pos in uuids:
                 new_uuid = str(uuid.uuid4())
                 synset_data = {
-                    "id": new_uuid,
+                    "id": gen_synset_index(cid, pos),
+                    "id_uuid": new_uuid,
                     "name": concept["name"],
                     "definition": concept["gloss"],
                     "part_of_speech": pos,
                 }
-                if ARGS.dry_run:
-                    print(synset_data)
+                if dry_run:
+                    logging.info(synset_data)
                 else:
-                    cur.execute(insert_synset_sql, synset_data)
+                    inserter.insert_synset(synset_data)
                 uuids[pos] = new_uuid
 
             concepts[cid]["uuids"] = uuids
@@ -199,8 +192,10 @@ def transform_ruthes_to_ruwordnet():
             # Создание понятий
             for entry in concept["entries"]:
                 sense_data = {
-                    "id": str(uuid.uuid4()),
-                    "synset_id": uuids[entry["part_of_speech"]],
+                    "id": gen_sense_index(cid, entry["part_of_speech"], entry["id"]),
+                    "synset_id": gen_synset_index(cid, entry["part_of_speech"]),
+                    "id_uuid": str(uuid.uuid4()),
+                    "synset_id_uuid": uuids[entry["part_of_speech"]],
                     "name": entry["name"],
                     "lemma": entry["lemma"],
                     "synt_type": entry["synt_type"],
@@ -208,23 +203,20 @@ def transform_ruthes_to_ruwordnet():
                     "main_word": entry["main_word"],
                     "poses": entry["poses"],
                 }
-                if ARGS.dry_run:
-                    print(sense_data)
+                if dry_run:
+                    logging.info(sense_data)
                 else:
-                    cur.execute(insert_sense_sql, sense_data)
+                    inserter.insert_sense(sense_data)
 
-            if not ARGS.dry_run:
+            if not dry_run:
                 print(
                     "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
                     end="",
                     flush=True,
                 )
 
-        print("\nProcessing relations...")
+        logging.info("\nProcessing relations...")
         i = 0
-        insert_relation_sql = make_insert_query(
-            "synset_relations", ("parent_id", "child_id", "name"), cur
-        )
         for cid, concept in concepts.items():
             i += 1
             # Частеречная синонимия
@@ -232,41 +224,46 @@ def transform_ruthes_to_ruwordnet():
                 for child_pos, child_uuid in concept["uuids"].items():
                     if parent_pos != child_pos:
                         relation_data = {
-                            "parent_id": parent_uuid,
-                            "child_id": child_uuid,
+                            "parent_id": gen_synset_index(cid, parent_pos),
+                            "child_id": gen_synset_index(cid, child_pos),
+                            "parent_id_uuid": parent_uuid,
+                            "child_id_uuid": child_uuid,
                             "name": "POS-synonymy",
                         }
-                        if ARGS.dry_run:
-                            print(relation_data)
+                        if dry_run:
+                            logging.info(relation_data)
                         else:
-                            cur.execute(insert_relation_sql, relation_data)
+                            inserter.insert_synset_relation(relation_data)
 
             # Остальные отношения
             for pos, c_uuid in concept["uuids"].items():
                 relations = []
                 for relation in concept["relations"]:
-                    relations += fix_relation(concepts, relation, all_types[pos])
+                    relations += fix_relation(concepts, relation, POS_TYPE_MAP[pos])
 
                 relations = uniqify(relations, lambda r: "{to_id}|{name}".format(**r))
 
                 for relation in relations:
                     to_concept = concepts[relation["to_id"]]
-                    # TODO Проверить — возможно это проверка лишняя
+                    # NOTE Возможно это проверка лишняя
                     if pos in to_concept["uuids"]:
                         relation_name = get_relation_name(
                             relation["name"], relation["asp"], pos
                         )
                         if relation_name is not None:
                             relation_data = {
-                                "parent_id": c_uuid,
-                                "child_id": to_concept["uuids"][pos],
+                                "parent_id": gen_synset_index(cid, pos),
+                                "child_id": gen_synset_index(to_concept["id"], pos),
+                                "parent_id_uuid": c_uuid,
+                                "child_id_uuid": to_concept["uuids"][pos],
                                 "name": relation_name,
                             }
-                            if ARGS.dry_run:
-                                print(relation_data)
+                            if dry_run:
+                                logging.info(relation_data)
                             else:
-                                cur.execute(insert_relation_sql, relation_data)
-            if not ARGS.dry_run:
+                                inserter.insert_synset_relation(relation_data)
+
+            if not dry_run:
                 print(
                     "\rProgress: {0}% ({1})".format(round(i / count * 100), i),
                     end="",
@@ -276,8 +273,91 @@ def transform_ruthes_to_ruwordnet():
         print()
 
 
-def get_part_of_speech(synt_type, all_types):
-    for pos, types in all_types.items():
+class SoftInserter:
+    def __init__(self, connection):
+        self.connection = connection
+        self.cursor = connection.cursor()
+        self.synset_query = None
+        self.sense_query = None
+        self.synset_relation_query = None
+
+    def insert_synset(self, data):
+        self.do_insert(self.get_synset_query(), data, "synset")
+
+    def insert_sense(self, data):
+        self.do_insert(self.get_sense_query(), data, "sense")
+
+    def insert_synset_relation(self, data):
+        self.do_insert(self.get_synset_relation_query(), data, "relation")
+
+    def do_insert(self, sql, data, mark: str):
+        try:
+            self.cursor.execute(sql, data)
+            self.connection.commit()
+        except errors.UniqueViolation:
+            logging.debug("Skip existing %s %s", mark, data)
+            self.connection.rollback()
+
+    def get_synset_query(self) -> str:
+        if self.synset_query is None:
+            fields = ("id", "name", "definition", "part_of_speech", "id_uuid")
+            self.synset_query = self.make_insert_query("synsets", fields, self.cursor)
+        return self.synset_query
+
+    def get_sense_query(self) -> str:
+        if self.sense_query is None:
+            fields = (
+                "id",
+                "synset_id",
+                "name",
+                "lemma",
+                "synt_type",
+                "meaning",
+                "main_word",
+                "poses",
+                "id_uuid",
+                "synset_id_uuid",
+            )
+            self.sense_query = self.make_insert_query("senses", fields, self.cursor)
+        return self.sense_query
+
+    def get_synset_relation_query(self) -> str:
+        if self.synset_relation_query is None:
+            fields = (
+                "parent_id",
+                "child_id",
+                "name",
+                "parent_id_uuid",
+                "child_id_uuid",
+            )
+            self.synset_relation_query = self.make_insert_query(
+                "synset_relations", fields, self.cursor
+            )
+        return self.synset_relation_query
+
+    @staticmethod
+    def make_insert_query(table, fields, cur):
+        fields = sorted(fields)
+        fields_str = ", ".join(fields)
+        dollars = ", ".join("$" + str(i + 1) for i, _ in enumerate(fields))
+        placeholders = ", ".join("%({0})s".format(f) for f in fields)
+
+        sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(
+            placeholders=placeholders, table=table
+        )
+
+        sql = "PREPARE prepared_query_{table} AS ".format(
+            table=table
+        ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(
+            fields=fields_str, dollars=dollars, tbl=table
+        )
+
+        cur.execute(sql)
+        return sql_str
+
+
+def get_part_of_speech(synt_type):
+    for pos, types in POS_TYPE_MAP.items():
         if synt_type in types:
             return pos
 
@@ -285,9 +365,7 @@ def get_part_of_speech(synt_type, all_types):
 def uniqify(seq, idfun=None):
     # order preserving
     if idfun is None:
-
-        def idfun(x):
-            return x
+        idfun = lambda x: x
 
     seen = set()
     for item in seq:
@@ -298,26 +376,7 @@ def uniqify(seq, idfun=None):
         yield item
 
 
-def make_insert_query(table, fields, cur):
-    fields_str = ", ".join(str(v) for v in fields)
-    dollars = ", ".join("$" + str(i + 1) for i in range(len(fields)))
-    placeholders = ", ".join("%({0})s".format(f) for f in fields)
-
-    sql_str = "EXECUTE prepared_query_{table} ({placeholders})".format(
-        placeholders=placeholders, table=table
-    )
-
-    sql = "PREPARE prepared_query_{table} AS ".format(
-        table=table
-    ) + "INSERT INTO {tbl} ({fields}) VALUES ({dollars})".format(
-        fields=fields_str, dollars=dollars, tbl=table
-    )
-
-    cur.execute(sql)
-    return sql_str
-
-
-def fix_relation(concepts, relation, types, path=None) -> object:
+def fix_relation(concepts, relation, types, path=None) -> list:
     """
     Проверяем текущее отношение - оно должно указывать на понятие
     с не пустыми текстовыми входами. Если отношение не проходит
@@ -344,10 +403,10 @@ def fix_relation(concepts, relation, types, path=None) -> object:
             return [relation]
         # Отношение не подходит
         # Замыкание предусмотрено не для всех типов связей
-        if relation["name"] not in [
+        if relation["name"] not in {
             "НИЖЕ",
             "ВЫШЕ",
-        ]:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
+        }:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
             return []
         # Спускаемся ниже по иерархии
         relations = []
@@ -404,7 +463,7 @@ def get_relation_name(rel_type, asp, pos):
         },
     }
 
-    if rel_type in ("ЧАСТЬ", "ЦЕЛОЕ") and asp == "":
+    if rel_type in {"ЧАСТЬ", "ЦЕЛОЕ"} and asp == "":
         return None
 
     return rel_map[pos][rel_type]

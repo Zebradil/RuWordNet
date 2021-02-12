@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import os
 from collections import defaultdict
 
@@ -12,6 +13,7 @@ PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Generate RuWordNet xml files")
     connection_string = (
         "host='localhost' dbname='ruwordnet' user='ruwordnet' password='ruwordnet'"
@@ -58,11 +60,11 @@ class Generator:
         self.ili = []
 
     def run(self):
-        print("Start")
+        logging.info("Start")
 
         with self.connection.cursor(cursor_factory=extras.RealDictCursor) as cur:
-            print("Selecting all data...")
-            print("synsets")
+            logging.info("Selecting all data...")
+            logging.info("synsets")
             cur.execute(
                 """
                 SELECT
@@ -79,7 +81,7 @@ class Generator:
             self.synsets = [{**row, "relations": [],} for row in cur]
             synsets_by_id = {synset["id"]: synset for synset in self.synsets}
 
-            print("senses")
+            logging.info("senses")
             cur.execute(
                 """
                 SELECT
@@ -97,15 +99,15 @@ class Generator:
                 row["id"]: {**row, "meaning": int(row["meaning"]) + 1,} for row in cur
             }
 
-            print("synset relations")
+            logging.info("synset relations")
             cur.execute("SELECT * FROM synset_relations")
             self.synset_relations = cur.fetchall()
 
-            print("distribute relations...")
+            logging.info("distribute relations...")
             for relation in self.synset_relations:
                 synsets_by_id[relation["parent_id"]]["relations"].append(relation)
 
-            print("building trees...")
+            logging.info("building trees...")
 
             current_pos = ""
             synsets_root = None
@@ -127,7 +129,7 @@ class Generator:
                     synset_relations_root = etree.Element("relations")
                     current_pos = synset["part_of_speech"]
                     print()
-                    print("POS: " + current_pos)
+                    logging.info(f"POS: {current_pos}")
                 self.add_synset(synsets_root, synset)
                 for sense_id in synset["senses"]:
                     self.add_sense(senses_root, self.senses[sense_id])
@@ -149,14 +151,14 @@ class Generator:
             self.generate_derived_from_relations_file(cur)
             self.generate_ili_file(cur)
 
-        print("Done")
+        logging.info("Done")
 
     def write_file(self, root: etree.Element, entity: str, pos: str):
         tree = etree.ElementTree(root)
         filename = os.path.join(self.out_dir, "{0}.{1}.xml".format(entity, pos[0]))
         if os.path.isfile(filename):
             os.remove(filename)
-        print("Output file: " + filename)
+        logging.info("Output file: " + filename)
         tree.write(filename, encoding="utf-8", pretty_print=True)
 
     def add_synset(self, root: etree.Element, row: dict):
@@ -184,9 +186,9 @@ class Generator:
             element.set(k, xstr(v))
 
     def generate_sense_relations_file(self, relation_name, cur):
-        print('Generating "{}" relations file'.format(relation_name))
+        logging.info('Generating "{}" relations file'.format(relation_name))
 
-        print("Getting relations from the database")
+        logging.info("Getting relations from the database")
         sql = """
           SELECT
             parent_id,
@@ -198,7 +200,7 @@ class Generator:
 
         root = etree.Element("senses")
 
-        print("Generating xml")
+        logging.info("Generating xml")
         for row in cur:
             parent_sense = self.senses[row["parent_id"]]
             x_sense = etree.SubElement(root, "sense")
@@ -217,7 +219,7 @@ class Generator:
         filename = os.path.join(self.out_dir, "{}.xml".format(relation_name))
         if os.path.isfile(filename):
             os.remove(filename)
-        print("Output file: " + filename)
+        logging.info("Output file: " + filename)
         tree.write(filename, encoding="utf-8", pretty_print=True)
 
     def generate_derived_from_relations_file(self, cur):
@@ -227,7 +229,7 @@ class Generator:
         self.generate_sense_relations_file("composed_of", cur)
 
     def generate_ili_file(self, cur):
-        print("Generating ILI file")
+        logging.info("Generating ILI file")
 
         synsets_by_concept_id = defaultdict(list)
         for synset in self.synsets:
@@ -294,7 +296,7 @@ class Generator:
         filename = os.path.join(self.out_dir, "ili.xml")
         if os.path.isfile(filename):
             os.remove(filename)
-        print("Output file: " + filename)
+        logging.info("Output file: " + filename)
         tree.write(filename, encoding="utf-8", pretty_print=True)
 
     @staticmethod

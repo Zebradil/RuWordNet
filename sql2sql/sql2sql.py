@@ -3,7 +3,6 @@
 import argparse
 import logging
 import os
-import uuid
 
 from nltk.tree import ParentedTree
 from psycopg2 import connect, errors, extras
@@ -165,16 +164,14 @@ def transform_ruthes_to_ruwordnet(dry_run):
             i += 1
 
             # Определение, в каких частях речи представлено понятие
-            uuids = {}
-            for entry in concept["entries"]:
-                uuids[entry["part_of_speech"]] = None
+            poses = {entry["part_of_speech"] for entry in concept["entries"]}
+
+            pos_to_concept_id = {}
 
             # Создание синсета для каждой из частей речи
-            for pos in uuids:
-                new_uuid = str(uuid.uuid4())
+            for pos in poses:
                 synset_data = {
                     "id": gen_synset_index(cid, pos),
-                    "id_uuid": new_uuid,
                     "name": concept["name"],
                     "definition": concept["gloss"],
                     "part_of_speech": pos,
@@ -183,17 +180,15 @@ def transform_ruthes_to_ruwordnet(dry_run):
                     logging.info(synset_data)
                 else:
                     inserter.insert_synset(synset_data)
-                uuids[pos] = new_uuid
+                pos_to_concept_id[pos] = synset_data["id"]
 
-            concepts[cid]["uuids"] = uuids
+            concepts[cid]["synset_ids"] = pos_to_concept_id
 
             # Создание понятий
             for entry in concept["entries"]:
                 sense_data = {
                     "id": gen_sense_index(cid, entry["part_of_speech"], entry["id"]),
                     "synset_id": gen_synset_index(cid, entry["part_of_speech"]),
-                    "id_uuid": str(uuid.uuid4()),
-                    "synset_id_uuid": uuids[entry["part_of_speech"]],
                     "name": entry["name"],
                     "lemma": entry["lemma"],
                     "synt_type": entry["synt_type"],
@@ -218,14 +213,12 @@ def transform_ruthes_to_ruwordnet(dry_run):
         for cid, concept in concepts.items():
             i += 1
             # Частеречная синонимия
-            for parent_pos, parent_uuid in concept["uuids"].items():
-                for child_pos, child_uuid in concept["uuids"].items():
+            for parent_pos, parent_id in concept["synset_ids"].items():
+                for child_pos, child_id in concept["synset_ids"].items():
                     if parent_pos != child_pos:
                         relation_data = {
-                            "parent_id": gen_synset_index(cid, parent_pos),
-                            "child_id": gen_synset_index(cid, child_pos),
-                            "parent_id_uuid": parent_uuid,
-                            "child_id_uuid": child_uuid,
+                            "parent_id": parent_id,
+                            "child_id": child_id,
                             "name": "POS-synonymy",
                         }
                         if dry_run:
@@ -234,7 +227,7 @@ def transform_ruthes_to_ruwordnet(dry_run):
                             inserter.insert_synset_relation(relation_data)
 
             # Остальные отношения
-            for pos, c_uuid in concept["uuids"].items():
+            for pos, synset_id in concept["synset_ids"].items():
                 relations = []
                 for relation in concept["relations"]:
                     relations += fix_relation(concepts, relation, POS_TYPE_MAP[pos])
@@ -244,16 +237,14 @@ def transform_ruthes_to_ruwordnet(dry_run):
                 for relation in relations:
                     to_concept = concepts[relation["to_id"]]
                     # NOTE Возможно это проверка лишняя
-                    if pos in to_concept["uuids"]:
+                    if pos in to_concept["synset_ids"]:
                         relation_name = get_relation_name(
                             relation["name"], relation["asp"], pos
                         )
                         if relation_name is not None:
                             relation_data = {
-                                "parent_id": gen_synset_index(cid, pos),
+                                "parent_id": synset_id,
                                 "child_id": gen_synset_index(to_concept["id"], pos),
-                                "parent_id_uuid": c_uuid,
-                                "child_id_uuid": to_concept["uuids"][pos],
                                 "name": relation_name,
                             }
                             if dry_run:
@@ -306,7 +297,7 @@ class SoftInserter:
 
     def get_synset_query(self) -> str:
         if self.synset_query is None:
-            fields = ("id", "name", "definition", "part_of_speech", "id_uuid")
+            fields = ("id", "name", "definition", "part_of_speech")
             self.synset_query = self.make_insert_query("synsets", fields, self.cursor)
         return self.synset_query
 
@@ -321,8 +312,6 @@ class SoftInserter:
                 "meaning",
                 "main_word",
                 "poses",
-                "id_uuid",
-                "synset_id_uuid",
             )
             self.sense_query = self.make_insert_query("senses", fields, self.cursor)
         return self.sense_query
@@ -333,8 +322,6 @@ class SoftInserter:
                 "parent_id",
                 "child_id",
                 "name",
-                "parent_id_uuid",
-                "child_id_uuid",
             )
             self.synset_relation_query = self.make_insert_query(
                 "synset_relations", fields, self.cursor

@@ -169,7 +169,7 @@ class Generator:
         for sense_id in row["senses"]:
             sense = self.senses[sense_id]
             sense_el = etree.SubElement(synset, "sense")
-            sense_el.set("id", str(sense["id"]))
+            sense_el.set("id", sense["id"])
             sense_el.text = sense["lemma"]
 
     def add_sense(self, root, row):
@@ -202,16 +202,16 @@ class Generator:
         for row in cur:
             parent_sense = self.senses[row["parent_id"]]
             x_sense = etree.SubElement(root, "sense")
-            x_sense.set("name", xstr(parent_sense["name"]))
-            x_sense.set("id", xstr(parent_sense["id"]))
-            x_sense.set("synset_id", xstr(parent_sense["synset_id"]))
+            x_sense.set("name", parent_sense["name"])
+            x_sense.set("id", parent_sense["id"])
+            x_sense.set("synset_id", parent_sense["synset_id"])
             x_rel = etree.SubElement(x_sense, relation_name)
             for child_id in row["child_ids"]:
                 child_sense = self.senses[child_id]
                 x_lexeme = etree.SubElement(x_rel, "sense")
-                x_lexeme.set("name", xstr(child_sense["name"]))
-                x_lexeme.set("id", xstr(child_sense["id"]))
-                x_lexeme.set("synset_id", xstr(child_sense["synset_id"]))
+                x_lexeme.set("name", child_sense["name"])
+                x_lexeme.set("id", child_sense["id"])
+                x_lexeme.set("synset_id", child_sense["synset_id"])
 
         tree = etree.ElementTree(root)
         filename = os.path.join(self.out_dir, "{}.xml".format(relation_name))

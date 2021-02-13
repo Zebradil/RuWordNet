@@ -208,7 +208,8 @@ def transform_ruthes_to_ruwordnet(dry_run):
                     flush=True,
                 )
 
-        logging.info("\nProcessing relations...")
+        print()
+        logging.info("Processing relations...")
         i = 0
         for cid, concept in concepts.items():
             i += 1

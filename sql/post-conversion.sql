@@ -4,6 +4,14 @@ SET name = 'entailment'
 WHERE name = 'part holonym'
       AND exists(SELECT *
                  FROM synsets
+                 WHERE id = sr.parent_id AND part_of_speech = 'V')
+ON CONFLICT DO NOTHING;
+
+-- удаление оставшихся отношений ЦЕЛОЕ для глаголов
+DELETE FROM synset_relations sr
+WHERE name = 'part holonym'
+      AND exists(SELECT *
+                 FROM synsets
                  WHERE id = sr.parent_id AND part_of_speech = 'V');
 
 -- удаление отношений ЧАСТЬ для глаголов

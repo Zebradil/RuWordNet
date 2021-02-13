@@ -1,11 +1,19 @@
 -- замена отношений ЦЕЛОЕ → entailment для глаголов
 UPDATE synset_relations sr
-SET name = 'entailment'
-WHERE name = 'part holonym'
-      AND exists(SELECT *
-                 FROM synsets
-                 WHERE id = sr.parent_id AND part_of_speech = 'V')
-ON CONFLICT DO NOTHING;
+   SET name = 'entailment'
+ WHERE name = 'part holonym'
+   AND NOT EXISTS (
+     SELECT 1
+       FROM synset_relations
+      WHERE parent_id = sr.parent_id
+        AND child_id = sr.child_id
+        AND name = 'entailment'
+   )
+   AND EXISTS (
+     SELECT 1
+       FROM synsets
+      WHERE id = sr.parent_id AND part_of_speech = 'V'
+   );
 
 -- удаление оставшихся отношений ЦЕЛОЕ для глаголов
 DELETE FROM synset_relations sr

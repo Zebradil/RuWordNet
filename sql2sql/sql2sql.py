@@ -4,12 +4,11 @@ import argparse
 import logging
 import os
 
-from nltk.tree import ParentedTree
 from psycopg2 import connect, errors, extras
 
 PKG_ROOT = os.path.split(__file__)[0]
 
-logging.basicConfig(level="INFO")
+logging.basicConfig(level=logging.INFO)
 
 conn = None
 

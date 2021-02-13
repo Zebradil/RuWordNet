@@ -279,13 +279,38 @@ class SoftInserter:
         self.sense_query = None
         self.synset_relation_query = None
 
+        self.synsets = set()
+        self.senses = set()
+        self.synset_relations = set()
+        self.fill_caches()
+
+    def fill_caches(self):
+        with self.connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM synsets")
+            self.synsets = {row[0] for row in cursor}
+
+            cursor.execute("SELECT id FROM senses")
+            self.senses = {row[0] for row in cursor}
+
+            cursor.execute("SELECT parent_id, child_id, name FROM synset_relations")
+            self.synset_relations = {tuple(row) for row in cursor}
+
     def insert_synset(self, data):
+        if data["id"] in self.synsets:
+            logging.debug("Skip existing synset: %s", data["id"])
+            return
         self.do_insert(self.get_synset_query(), data, "synset")
 
     def insert_sense(self, data):
+        if data["id"] in self.senses:
+            logging.debug("Skip existing sense: %s", data["id"])
+            return
         self.do_insert(self.get_sense_query(), data, "sense")
 
     def insert_synset_relation(self, data):
+        if (data["parent_id"], data["child_id"], data["name"]) in self.synset_relations:
+            logging.debug("Skip existing synset relation: %s", data)
+            return
         self.do_insert(self.get_synset_relation_query(), data, "relation")
 
     def do_insert(self, sql, data, mark: str):
@@ -293,7 +318,7 @@ class SoftInserter:
             self.cursor.execute(sql, data)
             self.connection.commit()
         except errors.UniqueViolation:
-            logging.debug("Skip existing %s %s", mark, data)
+            logging.debug("Insert failed for %s %s", mark, data)
             self.connection.rollback()
 
     def get_synset_query(self) -> str:

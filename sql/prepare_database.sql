@@ -12,10 +12,11 @@ $$ LANGUAGE PLPGSQL IMMUTABLE;
 -- RuThes tables
 
 CREATE TABLE concepts (
-  id     INTEGER PRIMARY KEY,
-  name   TEXT,
-  gloss  TEXT,
-  domain TEXT
+  id      INTEGER PRIMARY KEY,
+  name    TEXT,
+  gloss   TEXT,
+  domain  TEXT,
+  version TEXT
 );
 
 CREATE INDEX ON concepts (name);

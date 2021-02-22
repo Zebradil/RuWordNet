@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 conn = connect(connection_string)
 with conn.cursor() as cur:
-    re_sense_lemma = re.compile(r"^([A-ZА-Я\s-]+)")
+    re_sense_lemma = re.compile(r"^([\w\s-]+)\s+\d+\s+\d+\s+\d+")
 
     for line in sys.stdin:
         line = line.strip()

@@ -49,6 +49,7 @@ CREATE INDEX ON text_entry (lemma);
 CREATE TABLE synonyms (
   concept_id INTEGER, -- REFERENCES concepts (id),
   entry_id   INTEGER, -- REFERENCES text_entry (id)
+  version    TEXT,
   PRIMARY KEY (concept_id, entry_id)
 );
 CREATE INDEX ON synonyms (entry_id);

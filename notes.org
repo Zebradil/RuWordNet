@@ -1,0 +1,5 @@
+* Snippets
+** Extract text entries from frequent words list
+#+begin_src shell
+rg '^([\w\s-]+)\s+\d+\s+\d+\s+\d+' --only-matching --replace='$1' data/ILI/frequent_words_for_ILI.txt | sed -e 's/\s*$//' > frequent_words_list.txt
+#+end_src

@@ -26,6 +26,7 @@ CREATE TABLE relations (
   to_id   INTEGER, -- REFERENCES concepts (id),
   name    TEXT,
   asp     TEXT,
+  version TEXT,
   PRIMARY KEY (from_id, to_id, name)
 );
 

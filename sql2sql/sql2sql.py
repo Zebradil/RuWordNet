@@ -238,9 +238,7 @@ def transform_ruthes_to_ruwordnet(dry_run):
                     to_concept = concepts[relation["to_id"]]
                     # NOTE Возможно это проверка лишняя
                     if pos in to_concept["synset_ids"]:
-                        relation_name = get_relation_name(
-                            relation["name"], relation["asp"], pos
-                        )
+                        relation_name = get_relation_name(relation, pos)
                         if relation_name is not None:
                             relation_data = {
                                 "parent_id": synset_id,
@@ -438,7 +436,15 @@ def fix_relation(concepts, relation, types, path=None) -> list:
     return []
 
 
-def get_relation_name(rel_type, asp, pos):
+def get_relation_name(relation, pos):
+    rel_type = relation["name"]
+    asp = relation["asp"]
+    version = relation["version"]
+
+    # Для новых отношений берём для начала самые простые типы
+    if version != "initial" and rel_type not in {"ВЫШЕ", "НИЖЕ"}:
+        return None
+
     rel_map = {
         "N": {
             "АСЦ2": None,

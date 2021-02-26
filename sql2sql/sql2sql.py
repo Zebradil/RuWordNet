@@ -55,7 +55,7 @@ def transform_ruthes_to_ruwordnet(dry_run):
 
     with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
 
-        logging.info("Finding entries...")
+        logging.info("Fetching entries...")
 
         sql = """
           SELECT
@@ -140,7 +140,7 @@ def transform_ruthes_to_ruwordnet(dry_run):
 
         logging.info("{0} entries found.".format(cur.rowcount))
 
-        logging.info("Selecting relations...")
+        logging.info("Fetching relations...")
         sql = """
           SELECT r.*
           FROM relations r
@@ -424,7 +424,7 @@ def fix_relation(concepts, relation, types, path=None) -> list:
         if relation["name"] not in {
             "НИЖЕ",
             "ВЫШЕ",
-        }:  # , 'ЭКЗЕМПЛЯР', 'КЛАСС', 'ЦЕЛОЕ', 'ЧАСТЬ']:
+        }:
             return []
         # Спускаемся ниже по иерархии
         relations = []

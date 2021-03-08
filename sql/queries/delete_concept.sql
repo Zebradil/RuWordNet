@@ -68,10 +68,10 @@ DELETE FROM relations WHERE from_id = :concept_id OR to_id = :concept_id;
 
 DELETE FROM concepts WHERE id = :concept_id;
 
-DELETE FROM sense_relations WHERE SUBSTRING(parent_id, '^\d+') = :concept_id OR SUBSTRING(child_id, '^\d+') = :concept_id;
+DELETE FROM sense_relations WHERE SUBSTRING(parent_id, '^\d+')::int = :concept_id OR SUBSTRING(child_id, '^\d+')::int = :concept_id;
 
-DELETE FROM senses WHERE SUBSTRING(id, '^\d+') = :concept_id;
+DELETE FROM senses WHERE SUBSTRING(id, '^\d+')::int = :concept_id;
 
-DELETE FROM synset_relations WHERE SUBSTRING(parent_id, '^\d+') = :concept_id OR SUBSTRING(child_id, '^\d+') = :concept_id;
+DELETE FROM synset_relations WHERE SUBSTRING(parent_id, '^\d+')::int = :concept_id OR SUBSTRING(child_id, '^\d+')::int = :concept_id;
 
-DELETE FROM synsets WHERE SUBSTRING(id, '^\d+') = :concept_id;
+DELETE FROM synsets WHERE SUBSTRING(id, '^\d+')::int = :concept_id;

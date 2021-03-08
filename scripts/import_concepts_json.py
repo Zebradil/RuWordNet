@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import json
+import logging
 import sys
 
 from psycopg2 import IntegrityError, connect
@@ -37,10 +37,7 @@ def extract_entities(data):
         text_entry = extract_text_entry(synonym)
         text_entries.append(text_entry)
         synonyms.append(
-            {
-                "concept_id": concept["id"],
-                "entry_id": text_entry["id"],
-            }
+            {"concept_id": concept["id"], "entry_id": text_entry["id"],}
         )
 
     relations = [
@@ -56,8 +53,8 @@ def extract_concept(data):
         "name": data["conceptstr"],
         "gloss": data["shortcomments"],
         "en_name": data["conceptengstr"],
-        "is_abstract": bool(data["isabstract"]),
-        "is_arguable": bool(data["isarguable"]),
+        "is_abstract": bool(int(data["isabstract"])),
+        "is_arguable": bool(int(data["isarguable"])),
         "domainmask": int(data["domainmask"]),
     }
 
@@ -67,8 +64,8 @@ def extract_text_entry(data):
         "id": int(data["textentryid"]),
         "name": data["textentrystr"],
         "lemma": data["lementrystr"],
-        "is_ambig": bool(data["isambig"]),
-        "is_arguable": bool(data["isarguable"]),
+        "is_ambig": bool(int(data["isambig"])),
+        "is_arguable": bool(int(data["isarguable"])),
     }
 
 
@@ -78,15 +75,13 @@ def extract_relation(data, from_id):
         "to_id": int(data["conceptid"]),
         "name": data["relationstr"],
         "asp": data["aspect"],
-        "is_arguable": bool(data["isarguable"]),
+        "is_arguable": bool(int(data["isarguable"])),
     }
 
 
 def generate_insert(table, keys):
     return "INSERT INTO {} ({}) VALUES ({})".format(
-        table,
-        ", ".join(keys),
-        ", ".join(f"%({key})s" for key in keys),
+        table, ", ".join(keys), ", ".join(f"%({key})s" for key in keys),
     )
 
 

@@ -60,7 +60,7 @@ FROM text_entry
 WHERE
   array_length(regexp_split_to_array(name, '\s+-*\s*'), 1) <> array_length(regexp_split_to_array(lemma, '\s+'), 1);
 
--- Не указано главное слово для текстовых входах, состоящих из нескольких слов
+-- Не указано главное слово для текстовых входов, состоящих из нескольких слов
 SELECT *
 FROM text_entry
 WHERE array_length(regexp_split_to_array(lemma, '\s+'), 1) > 1

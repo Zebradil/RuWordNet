@@ -1,9 +1,10 @@
 -- отношения, в которых участвуют несуществующие понятия
 SELECT r.*
 FROM relations r
-  LEFT JOIN concepts cf ON cf.id = r.from_id
-  LEFT JOIN concepts ct ON ct.id = r.to_id
-WHERE cf.id IS NULL OR ct.id IS NULL;
+WHERE
+   NOT EXISTS(SELECT 1 FROM concepts WHERE ID = r.from_id)
+   OR
+   NOT EXISTS(SELECT 1 FROM concepts WHERE ID = r.to_id);
 
 -- неконсистентные связи между понятиями и текстовыми входами
 SELECT
@@ -30,11 +31,19 @@ WHERE NOT EXISTS(
 -- текстовые входы, не связанные ни с одним понятием
 SELECT t.*
 FROM text_entry t
-  LEFT JOIN synonyms s ON s.entry_id = t.id
-WHERE s.concept_id IS NULL;
+ WHERE NOT EXISTS(
+   SELECT 1
+     FROM synonyms
+    WHERE entry_id = t.ID
+      AND concept_id IS NOT NULL
+ );
 
 -- понятия без текстовых входов
 SELECT c.*
 FROM concepts c
-  LEFT JOIN synonyms s ON s.concept_id = c.id
-WHERE s.entry_id IS NULL;
+WHERE NOT EXISTS(
+  SELECT 1
+    FROM synonyms
+   WHERE entry_id IS NOT NULL
+     AND concept_id = c.id
+);

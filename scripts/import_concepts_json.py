@@ -49,33 +49,33 @@ def extract_entities(data):
 
 def extract_concept(data):
     return {
-        "id": int(data["conceptid"]),
-        "name": data["conceptstr"],
-        "gloss": data["shortcomments"],
-        "en_name": data["conceptengstr"],
-        "is_abstract": bool(int(data["isabstract"])),
-        "is_arguable": bool(int(data["isarguable"])),
-        "domainmask": int(data["domainmask"]),
+        "id": int(data["conceptid"].strip()),
+        "name": data["conceptstr"].strip(),
+        "gloss": data["shortcomments"].strip(),
+        "en_name": data["conceptengstr"].strip(),
+        "is_abstract": bool(int(data["isabstract"].strip())),
+        "is_arguable": bool(int(data["isarguable"].strip())),
+        "domainmask": int(data["domainmask"].strip()),
     }
 
 
 def extract_text_entry(data):
     return {
-        "id": int(data["textentryid"]),
-        "name": data["textentrystr"],
-        "lemma": data["lementrystr"],
-        "is_ambig": bool(int(data["isambig"])),
-        "is_arguable": bool(int(data["isarguable"])),
+        "id": int(data["textentryid"].strip()),
+        "name": data["textentrystr"].strip(),
+        "lemma": data["lementrystr"].strip(),
+        "is_ambig": bool(int(data["isambig"].strip())),
+        "is_arguable": bool(int(data["isarguable"].strip())),
     }
 
 
 def extract_relation(data, from_id):
     return {
         "from_id": from_id,
-        "to_id": int(data["conceptid"]),
-        "name": data["relationstr"],
-        "asp": data["aspect"],
-        "is_arguable": bool(int(data["isarguable"])),
+        "to_id": int(data["conceptid"].strip()),
+        "name": data["relationstr"].strip(),
+        "asp": data["aspect"].strip(),
+        "is_arguable": bool(int(data["isarguable"].strip())),
     }
 
 

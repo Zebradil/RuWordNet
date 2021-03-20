@@ -223,8 +223,10 @@ def get_data(conn):
                 ) t
                 join v2_synonyms s on s.entry_id = t.id
                 join v2_concepts c2 on c2.id = s.concept_id
-                join concepts c on c.id = c2.id
+                left join concepts c on c.id = c2.id
                 where c2.id > 0
+                  and c.id is null
+                  and is_multiword(t.lemma)
                 order by 1, 2
             """
         )

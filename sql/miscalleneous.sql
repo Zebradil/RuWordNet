@@ -276,3 +276,10 @@ ORDER BY relation_name,
     old.parent_name ,
     old.child_pos   ,
     old.child_name  ;
+
+SELECT part_of_speech, COUNT(DISTINCT sy.ID) synsets, COUNT(1) senses
+  FROM synsets sy
+         JOIN senses se
+             ON se.synset_id = sy.id
+ GROUP BY part_of_speech
+ ORDER BY 1;

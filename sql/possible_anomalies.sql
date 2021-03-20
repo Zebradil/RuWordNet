@@ -74,3 +74,22 @@ SELECT
 FROM text_entry
 GROUP BY lemma
 HAVING count(1) > 1;
+
+-- Отсутствие реверсивных ассциативных связей
+SELECT
+    *
+FROM
+    relations AS r
+WHERE
+    name = 'АСЦ'
+    AND NOT
+            EXISTS(
+                SELECT
+                    1
+                FROM
+                    relations
+                WHERE
+                    from_id = r.to_id
+                    AND to_id = r.from_id
+                    AND name = 'АСЦ'
+            );

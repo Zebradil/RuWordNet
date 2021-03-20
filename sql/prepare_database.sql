@@ -67,6 +67,7 @@ CREATE TABLE synsets (
 
 CREATE INDEX ON synsets (name);
 CREATE INDEX ON synsets (part_of_speech);
+CREATE INDEX synsets_concept_id_idx ON synsets (substring(id, '^\d+'));
 
 CREATE TABLE senses (
   id        TEXT PRIMARY KEY,
@@ -126,6 +127,7 @@ INSERT INTO relation_types (name, reverse_relation_name, parent_name) VALUES
   ('substance meronym', 'substance holonym', 'meronym'),
   ('part holonym', 'part meronym', 'holonym'),
   ('part meronym', 'part holonym', 'meronym'),
+  ('related', 'related', NULL),
   ('domain', 'domain member', NULL),
   ('domain member', 'domain', NULL),
   ('cause', NULL, NULL),

@@ -59,3 +59,25 @@ INSERT INTO synset_relations (parent_id, name, child_id)
   WHERE r.name = 'ДОМЕН'
     AND s2.part_of_speech = 'N'
 ON CONFLICT DO NOTHING;
+
+SELECT 'Добавление отношений related';
+INSERT INTO synset_relations (parent_id, name, child_id)
+  SELECT DISTINCT
+    sf.id fid,
+    'related',
+    st.id tid
+    FROM relations AS r
+           JOIN synsets sf
+               ON SUBSTRING(sf.id, '^\d+') = r.from_id::text
+           JOIN synsets st
+               ON SUBSTRING(st.id, '^\d+') = r.to_id::text
+   WHERE r.name IN ('АСЦ', 'АСЦ1', 'АСЦ2', 'КЛАСС', 'ЭКЗЕМПЛЯР')
+     AND sf.part_of_speech = 'N'
+     AND st.part_of_speech = 'N'
+     AND NOT EXISTS(
+       SELECT 1
+         FROM relations rr
+        WHERE rr.from_id = r.from_id
+          AND rr.to_id = r.to_id
+          AND rr.name != r.name
+     );

@@ -445,6 +445,7 @@ def get_relation_name(relation, pos):
     if version != "initial" and rel_type not in {"ВЫШЕ", "НИЖЕ"}:
         return None
 
+    # Отношения АСЦ, АСЦ1, АСЦ2 конвертируются в отношение related позже в post-conversion.sql
     rel_map = {
         "N": {
             "АСЦ2": None,

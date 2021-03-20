@@ -1,4 +1,4 @@
--- замена отношений ЦЕЛОЕ → entailment для глаголов
+SELECT 'замена отношений ЦЕЛОЕ → entailment для глаголов';
 UPDATE synset_relations sr
    SET name = 'entailment'
  WHERE name = 'part holonym'
@@ -15,21 +15,21 @@ UPDATE synset_relations sr
       WHERE id = sr.parent_id AND part_of_speech = 'V'
    );
 
--- удаление оставшихся отношений ЦЕЛОЕ для глаголов
+SELECT 'удаление оставшихся отношений ЦЕЛОЕ для глаголов';
 DELETE FROM synset_relations sr
 WHERE name = 'part holonym'
       AND exists(SELECT *
                  FROM synsets
                  WHERE id = sr.parent_id AND part_of_speech = 'V');
 
--- удаление отношений ЧАСТЬ для глаголов
+SELECT 'удаление отношений ЧАСТЬ для глаголов';
 DELETE FROM synset_relations sr
 WHERE name = 'part meronym'
       AND exists(SELECT *
                  FROM synsets
                  WHERE id = sr.parent_id AND part_of_speech = 'V');
 
--- Удаление отношений ВЫШЕ-НИЖЕ, если имеется отношение ЭКЗЕМПЛЯР-КЛАСС
+SELECT 'Удаление отношений ВЫШЕ-НИЖЕ, если имеется отношение ЭКЗЕМПЛЯР-КЛАСС';
 DELETE
 FROM synset_relations sr1
 WHERE name IN ('hypernym', 'hyponym')
@@ -41,7 +41,7 @@ WHERE name IN ('hypernym', 'hyponym')
                 AND sr2.name IN ('instance hypernym', 'instance hyponym')
       );
 
--- Импорт отношений domain из РуТез в RuWordNet
+SELECT 'Импорт отношений domain из РуТез в RuWordNet';
 INSERT INTO synset_relations (parent_id, name, child_id)
   SELECT
     s1.id    AS parent_id,

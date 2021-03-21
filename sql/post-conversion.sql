@@ -83,3 +83,30 @@ INSERT INTO synset_relations (parent_id, name, child_id)
           AND rr.name != 'ДОМЕН'
      )
          ON CONFLICT DO NOTHING;
+
+SELECT 'Конвертация отношений ВЫШЕ-НИЖЕ в КЛАСС-ЭКЗЕМПЛЯР для конкретных концептов';
+UPDATE synset_relations sr
+   SET name = 'instance ' || sr.name
+       FROM (
+         SELECT sr.parent_id, sr.name, sr.child_id
+           FROM synset_relations sr
+                  JOIN v2_concepts cp
+                      ON cp.id = SUBSTRING(sr.parent_id, '^\d+')::int8
+                  JOIN v2_concepts cc
+                      ON cc.id = SUBSTRING(sr.child_id, '^\d+')::int8
+          WHERE (
+            sr.name = 'hyponym'
+            AND NOT cc.is_abstract
+            AND SUBSTRING(sr.child_id, '\w$') = 'N'
+          ) OR (
+            sr.name = 'hypernym'
+            AND NOT cp.is_abstract
+            AND SUBSTRING(sr.parent_id, '\w$') = 'N'
+          )
+       ) na
+ WHERE sr.parent_id = na.parent_id
+   AND sr.child_id = na.child_id
+   AND sr.name = na.name;
+
+-- "НИЖЕ": "hyponym",
+-- "ВЫШЕ": "hypernym",

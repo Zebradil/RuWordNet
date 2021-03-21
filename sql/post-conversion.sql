@@ -63,9 +63,9 @@ ON CONFLICT DO NOTHING;
 SELECT 'Добавление отношений related';
 INSERT INTO synset_relations (parent_id, name, child_id)
   SELECT DISTINCT
-    sf.id fid,
+    sf.id,
     'related',
-    st.id tid
+    st.id
     FROM relations AS r
            JOIN synsets sf
                ON SUBSTRING(sf.id, '^\d+') = r.from_id::text
@@ -80,4 +80,6 @@ INSERT INTO synset_relations (parent_id, name, child_id)
         WHERE rr.from_id = r.from_id
           AND rr.to_id = r.to_id
           AND rr.name != r.name
-     );
+          AND rr.name != 'ДОМЕН'
+     )
+         ON CONFLICT DO NOTHING;

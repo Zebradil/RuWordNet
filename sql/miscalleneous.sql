@@ -153,6 +153,18 @@ WHERE asp = 'add_part';
 
 
 DELETE FROM relations
+ WHERE ctid IN (
+   SELECT ctid
+     FROM relations r1
+    WHERE r1.name = 'НИЖЕ' AND exists(
+      SELECT *
+        FROM relations r2
+       WHERE r2.from_id = r1.from_id
+         AND r2.to_id = r1.to_id
+         AND r2.name = 'ЭКЗЕМПЛЯР'
+    ));
+
+DELETE FROM relations
 WHERE ctid IN (
   SELECT ctid
   FROM relations r1

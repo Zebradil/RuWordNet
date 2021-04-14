@@ -481,9 +481,11 @@ def main():
         queue = JoinableQueue(workers_count * 10)
         for i in range(workers_count):
             wlogger = logging.getLogger(f"w-{i}")
-            wlogger.handlers[0].setFormatter(
+            handler = logging.StreamHandler()
+            handler.setFormatter(
                 logging.Formatter('"%(word)-31s %(name)-4s %(seq)-3s %(message)s"')
             )
+            wlogger.addHandler(handler)
             worker = Worker()
             worker.set(queue, ARGS.connection_string, wlogger, ARGS.test)
             worker.daemon = True

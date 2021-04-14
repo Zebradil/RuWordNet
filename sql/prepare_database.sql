@@ -200,7 +200,12 @@ CREATE TABLE roots (
     quality text NOT NULL,
     PRIMARY KEY (word, root, index, quality)
 );
-/* CREATE INDEX roots_word_root ON roots(word, root); */
+
+CREATE TABLE verified_roots (
+    word text NOT NULL,
+    root text NOT NULL,
+    PRIMARY KEY (word, root)
+);
 
 CREATE TABLE wn_data (
     id text NOT NULL,

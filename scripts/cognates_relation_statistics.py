@@ -216,6 +216,7 @@ prefix_exceptions = (
 )
 
 dictionary_roots = {}
+verified_roots = {}
 predefined_cognates = {}
 with open(PREDEFINED_COGNATES_FILE, "r") as f:
     for line in f:
@@ -411,6 +412,13 @@ def is_cognates(word1, word2):
         if word2 in predefined_cognates[word1]:
             logging.debug("from predefined list")
             return True
+    # If both words are in the list, do not check further
+    if word1 in verified_roots and word2 in verified_roots:
+        if verified_roots[word1] == verified_roots[word2]:
+            logging.debug("from verified roots list: %s %s", word1, word2)
+            return True
+        logging.debug("aren't cognates (list of verified): %s %s", word1, word2)
+        return False
     if (
         word1 in dictionary_roots
         and word2 in dictionary_roots
@@ -480,6 +488,21 @@ def main():
             worker.set(queue, ARGS.connection_string, wlogger, ARGS.test)
             worker.daemon = True
             worker.start()
+
+        logging.debug("retrieve list of verified roots")
+        sql = r"""
+          SELECT
+            UPPER(word) word,
+            UPPER(root) root
+          FROM verified_roots"""
+        cur.execute(sql)
+        for row in cur:
+            verified_roots[row["word"]] = row["root"]
+        logging.info(
+            "Fetched %s words with %s roots",
+            len(verified_roots),
+            len(set(verified_roots.values())),
+        )
 
         logging.debug("retrieve roots dictionary")
         sql = r"""

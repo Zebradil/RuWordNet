@@ -327,6 +327,7 @@ def prepare_search_cognates_transitionally(cursor):
               tree.relation_path[array_upper(tree.relation_path, 1)] = ANY($2)
               OR array_upper(tree.relation_path, 1) IS NULL
             )
+            AND array_length(tree.relation_path, 1) <= 50
         )
 
         -- Далее поиск выполняется по текстовым входам понятий из под-дерева, найденного в рекурсивной части

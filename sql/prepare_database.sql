@@ -95,7 +95,7 @@ CREATE TABLE relation_types (
 CREATE TABLE sense_relations (
   parent_id TEXT REFERENCES senses (id),
   child_id  TEXT REFERENCES senses (id),
-  name      TEXT REFERENCES relation_types (name),
+  name      TEXT REFERENCES relation_types (name) DEFAULT '',
   PRIMARY KEY (parent_id, child_id, name)
 );
 

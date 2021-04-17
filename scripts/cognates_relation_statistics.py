@@ -10,7 +10,8 @@ import sys
 from multiprocessing import JoinableQueue, Process, cpu_count
 from typing import Dict, List
 
-from psycopg2 import IntegrityError, connect, extras
+from psycopg2 import connect, extras
+from psycopg2.errors import UniqueViolation
 from tqdm import tqdm
 
 logging.basicConfig(level="INFO")
@@ -671,7 +672,7 @@ class Worker(Process):
                             self.insert_relation_sql,
                             {"child_id": row_lexeme["id"], **params},
                         )
-                    except IntegrityError:
+                    except UniqueViolation:
                         # Если такое отношение уже есть, не останавливаем выполнение
                         pass
 

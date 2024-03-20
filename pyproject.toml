@@ -16,7 +16,7 @@ pymorphy2 = {extras = ["fast"], version = "^0.9.1"}
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.5.3"
-black = "^19.10b0"
+black = "^24.3"
 ipython = "^8.0.0"
 autoflake = "^2.0"
 
